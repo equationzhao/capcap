@@ -51,22 +51,6 @@ enum SettingsTab: CaseIterable {
         case .about: return "info.circle.fill"
         }
     }
-
-    var iconTint: NSColor {
-        switch self {
-        case .general: return NSColor(calibratedRed: 0.62, green: 0.66, blue: 0.72, alpha: 1.0)
-        case .shortcuts, .capture:
-            return NSColor(calibratedRed: 0.36, green: 0.66, blue: 0.98, alpha: 1.0)
-        case .toolbar, .recording:
-            return NSColor(calibratedRed: 0.95, green: 0.54, blue: 0.62, alpha: 1.0)
-        case .upload: return NSColor(calibratedRed: 0.99, green: 0.72, blue: 0.32, alpha: 1.0)
-        case .translation, .files, .ocr:
-            return NSColor(calibratedRed: 0.38, green: 0.80, blue: 0.78, alpha: 1.0)
-        case .permissions: return NSColor(calibratedRed: 0.36, green: 0.78, blue: 0.50, alpha: 1.0)
-        case .about, .history:
-            return NSColor(calibratedRed: 0.70, green: 0.56, blue: 0.96, alpha: 1.0)
-        }
-    }
 }
 
 private enum HistoryPanelSettingsMode {
@@ -74,7 +58,7 @@ private enum HistoryPanelSettingsMode {
     case notch
 }
 
-class SettingsView: NSView {
+final class SettingsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     var isStartup: Bool = false
     var onMenuBarToggle: ((Bool) -> Void)?
@@ -90,16 +74,16 @@ class SettingsView: NSView {
     private var historyCacheSwitch: NSSwitch!
     private var clipboardTextCacheSwitch: NSSwitch!
 
-    private var historyCacheSlider: SettingsTickSlider!
+    private var historyCacheSlider: NSSlider!
     private var historyCacheValueLabel: NSTextField!
-    private var clipboardTextHistoryLimitSlider: SettingsTickSlider!
+    private var clipboardTextHistoryLimitSlider: NSSlider!
     private var clipboardTextHistoryLimitValueLabel: NSTextField!
     private var historyPanelModePreview: HistoryPanelModePreviewView!
     private var historyPanelDialogOption: HistoryPanelModeOptionView!
     private var historyPanelNotchOption: HistoryPanelModeOptionView!
     private var historyNotchTriggerLabel: NSTextField?
     private var historyNotchTriggerPopup: NSPopUpButton?
-    private var countdownSlider: SettingsTickSlider!
+    private var countdownSlider: NSSlider!
     private var countdownValueLabel: NSTextField!
     private var countdownTitleLabel: NSTextField!
     private var countdownHintLabel: NSTextField!
@@ -260,7 +244,9 @@ class SettingsView: NSView {
     private var microphoneBadge: StatusBadge?
 
     // Sidebar bottom action — Launch App in startup mode, Quit App otherwise.
-    private var launchButton: ActionButton?
+    private let launchButton = NSButton()
+    private let navigation = NSTableView()
+    private var isUpdatingNavigationSelection = false
 
     // Labels (kept for language switching)
     private var menuBarTitleLabel: NSTextField!
@@ -317,7 +303,6 @@ class SettingsView: NSView {
 
     // Sidebar / detail chrome
     private var selectedTab: SettingsTab = .general
-    private var tabButtons: [TabButton] = []
     private var detailTitleLabel: NSTextField!
     private var detailScrollView: NSScrollView!
     private var historyNotchTriggerRow: NSView?
@@ -366,7 +351,6 @@ class SettingsView: NSView {
     private var screenshotSavePathRevealButton: NSButton!
 
     private var refreshTimer: Timer?
-    private var gradientLayer: CAGradientLayer?
     private lazy var permissionFlowController = PermissionFlow.makeController(
         configuration: PermissionFlowConfiguration(
             requiredAppURLs: [Bundle.main.bundleURL],
@@ -377,9 +361,6 @@ class SettingsView: NSView {
     init(frame: NSRect, isStartup: Bool = false) {
         self.isStartup = isStartup
         super.init(frame: frame)
-        appearance = NSAppearance(named: .darkAqua)
-        wantsLayer = true
-        setupBackground()
         setupUI()
         startRefreshTimer()
         NotificationCenter.default.addObserver(
@@ -431,48 +412,28 @@ class SettingsView: NSView {
         NotificationCenter.default.removeObserver(self)
     }
 
-    override func layout() {
-        super.layout()
-        gradientLayer?.frame = bounds
-    }
-
     override var acceptsFirstResponder: Bool { true }
 
-    // MARK: - Background
+    func makeContentViewController() -> NSSplitViewController {
+        let sidebarController = NSViewController()
+        sidebarController.view = buildSidebar()
+        let detailController = NSViewController()
+        detailController.view = self
 
-    private func setupBackground() {
-        let gradient = CAGradientLayer()
-        gradient.colors = [
-            NSColor(calibratedRed: 0.10, green: 0.13, blue: 0.17, alpha: 1.0).cgColor,
-            NSColor(calibratedRed: 0.08, green: 0.10, blue: 0.14, alpha: 1.0).cgColor,
-            NSColor(calibratedRed: 0.11, green: 0.10, blue: 0.10, alpha: 1.0).cgColor,
-        ]
-        gradient.startPoint = CGPoint(x: 0, y: 1)
-        gradient.endPoint = CGPoint(x: 1, y: 0)
-        layer?.addSublayer(gradient)
-        gradientLayer = gradient
+        let sidebar = NSSplitViewItem(sidebarWithViewController: sidebarController)
+        sidebar.minimumThickness = 208
+        sidebar.maximumThickness = 240
+        sidebar.canCollapse = false
+
+        let split = NSSplitViewController()
+        split.splitView.isVertical = true
+        split.addSplitViewItem(sidebar)
+        split.addSplitViewItem(NSSplitViewItem(viewController: detailController))
+        return split
     }
 
-    // MARK: - Layout
-
     private func setupUI() {
-        let sidebar = buildSidebar()
-        addSubview(sidebar)
-
-        let detail = buildDetailPanel()
-        addSubview(detail)
-
-        NSLayoutConstraint.activate([
-            sidebar.topAnchor.constraint(equalTo: topAnchor, constant: 38),
-            sidebar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
-            sidebar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            sidebar.widthAnchor.constraint(equalToConstant: 224),
-
-            detail.topAnchor.constraint(equalTo: topAnchor, constant: 38),
-            detail.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
-            detail.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: 12),
-            detail.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
-        ])
+        buildDetailPanel()
 
         // Build all panes
         buildCapturePreferencePanes()
@@ -480,7 +441,11 @@ class SettingsView: NSView {
         paneViews[.toolbar] = buildToolbarPane()
         paneViews[.upload] = buildUploadPane()
         paneViews[.translation] = buildTranslationPane()
-        paneViews[.ocr] = OCRSettingsPane()
+        let ocrStack = paneStack()
+        let ocrPane = OCRSettingsPane()
+        ocrStack.addArrangedSubview(ocrPane)
+        ocrPane.widthAnchor.constraint(equalTo: ocrStack.widthAnchor).isActive = true
+        paneViews[.ocr] = wrapPane(ocrStack)
         paneViews[.permissions] = buildPermissionsPane()
         paneViews[.about] = buildAboutPane()
 
@@ -488,7 +453,6 @@ class SettingsView: NSView {
         let initial: SettingsTab = isStartup ? .permissions : .general
         selectTab(initial)
 
-        updateLaunchButtonVisibility()
         refreshPermissionStatus()
         refreshShortcutDisplay()
         refreshFullScreenScreenshotShortcutDisplay()
@@ -515,92 +479,112 @@ class SettingsView: NSView {
     // MARK: - Sidebar
 
     private func buildSidebar() -> NSView {
-        let panel = SidebarPanel()
-        panel.translatesAutoresizingMaskIntoConstraints = false
+        let sidebar = NSView()
+        let safeArea = sidebar.safeAreaLayoutGuide
+        let scroll = NSScrollView()
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.automaticallyAdjustsContentInsets = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
 
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 6
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        let navigation = NSScrollView()
-        navigation.translatesAutoresizingMaskIntoConstraints = false
-        navigation.drawsBackground = false
-        navigation.hasVerticalScroller = false
-        navigation.verticalScroller = nil
-        navigation.contentView.postsBoundsChangedNotifications = true
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(sidebarBoundsDidChange),
-            name: NSView.boundsDidChangeNotification,
-            object: navigation.contentView
-        )
-        panel.addSubview(navigation)
-        let document = FlippedView()
-        document.translatesAutoresizingMaskIntoConstraints = false
-        navigation.documentView = document
-        document.addSubview(stack)
-        NSLayoutConstraint.activate([
-            document.topAnchor.constraint(equalTo: navigation.contentView.topAnchor),
-            document.leadingAnchor.constraint(equalTo: navigation.contentView.leadingAnchor),
-            document.widthAnchor.constraint(equalTo: navigation.contentView.widthAnchor),
-            stack.topAnchor.constraint(equalTo: document.topAnchor),
-            stack.leadingAnchor.constraint(equalTo: document.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: document.trailingAnchor),
-            stack.bottomAnchor.constraint(equalTo: document.bottomAnchor),
-        ])
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("SettingsTab"))
+        column.resizingMask = .autoresizingMask
+        navigation.addTableColumn(column)
+        navigation.style = .sourceList
+        navigation.headerView = nil
+        navigation.rowHeight = 30
+        navigation.allowsEmptySelection = false
+        navigation.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        isUpdatingNavigationSelection = true
+        navigation.delegate = self
+        navigation.dataSource = self
+        isUpdatingNavigationSelection = false
+        navigation.setAccessibilityLabel(L10n.settingsTitle)
+        scroll.documentView = navigation
+        sidebar.addSubview(scroll)
 
-        for tab in SettingsTab.allCases {
-            if tab == .capture || tab == .upload {
-                let separator = SidebarSeparatorView()
-                stack.addArrangedSubview(separator)
-                separator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-                separator.heightAnchor.constraint(equalToConstant: 9).isActive = true
-            }
-            let btn = TabButton(tab: tab)
-            btn.target = self
-            btn.action = #selector(tabClicked(_:))
-            btn.translatesAutoresizingMaskIntoConstraints = false
-            tabButtons.append(btn)
-            stack.addArrangedSubview(btn)
-            btn.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        }
-
-        // Hairline above the bottom action so the sidebar visually splits
-        // navigation from the primary launch/quit affordance.
-        let divider = SidebarSeparatorView()
-        panel.addSubview(divider)
-
-        let bottomBtn = ActionButton(symbolName: "power", title: L10n.launchApp, tint: .systemGreen)
-        bottomBtn.target = self
-        bottomBtn.action = #selector(launchClicked)
-        bottomBtn.translatesAutoresizingMaskIntoConstraints = false
-        panel.addSubview(bottomBtn)
-        launchButton = bottomBtn
+        launchButton.bezelStyle = .rounded
+        launchButton.controlSize = .large
+        launchButton.imagePosition = .imageLeading
+        launchButton.image = NSImage(systemSymbolName: "power", accessibilityDescription: nil)
+        launchButton.target = self
+        launchButton.action = #selector(launchClicked)
+        launchButton.translatesAutoresizingMaskIntoConstraints = false
+        sidebar.addSubview(launchButton)
+        refreshBottomAction()
 
         NSLayoutConstraint.activate([
-            navigation.topAnchor.constraint(equalTo: panel.topAnchor, constant: 14),
-            navigation.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 14),
-            navigation.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -14),
-            navigation.bottomAnchor.constraint(equalTo: divider.topAnchor, constant: -8),
-
-            divider.heightAnchor.constraint(equalToConstant: 1),
-            divider.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 14),
-            divider.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -14),
-            divider.bottomAnchor.constraint(equalTo: bottomBtn.topAnchor, constant: -8),
-
-            bottomBtn.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 14),
-            bottomBtn.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -14),
-            bottomBtn.bottomAnchor.constraint(equalTo: panel.bottomAnchor, constant: -10),
+            scroll.topAnchor.constraint(equalTo: safeArea.topAnchor, constant: 8),
+            scroll.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: launchButton.topAnchor, constant: -12),
+            launchButton.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor, constant: 16),
+            launchButton.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor, constant: -16),
+            launchButton.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor, constant: -16),
         ])
-
-        return panel
+        refreshNavigationSelection(scrollToSelection: true)
+        return sidebar
     }
 
-    @objc private func sidebarBoundsDidChange() {
-        for button in tabButtons {
-            button.refreshHoverAtCurrentMouseLocation()
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        SettingsTab.allCases.count
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let identifier = NSUserInterfaceItemIdentifier("SettingsSidebarCell")
+        let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSTableCellView
+            ?? makeSidebarCell(identifier: identifier)
+        let tab = SettingsTab.allCases[row]
+        cell.textField?.stringValue = tab.title
+        cell.imageView?.image = NSImage(systemSymbolName: tab.iconName, accessibilityDescription: nil)
+        return cell
+    }
+
+    private func makeSidebarCell(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.identifier = identifier
+        let icon = NSImageView()
+        icon.imageScaling = .scaleProportionallyDown
+        icon.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        let label = NSTextField(labelWithString: "")
+        label.font = .systemFont(ofSize: NSFont.systemFontSize)
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(icon)
+        cell.addSubview(label)
+        cell.imageView = icon
+        cell.textField = label
+        NSLayoutConstraint.activate([
+            icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 18),
+            icon.heightAnchor.constraint(equalToConstant: 18),
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 9),
+            label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+            label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        guard !isUpdatingNavigationSelection,
+              SettingsTab.allCases.indices.contains(navigation.selectedRow)
+        else { return }
+        selectTab(SettingsTab.allCases[navigation.selectedRow], fromSidebar: true)
+    }
+
+    private func refreshNavigationSelection(scrollToSelection: Bool) {
+        guard navigation.dataSource != nil,
+              let row = SettingsTab.allCases.firstIndex(of: selectedTab)
+        else { return }
+        isUpdatingNavigationSelection = true
+        navigation.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        if scrollToSelection {
+            navigation.scrollRowToVisible(row)
         }
+        isUpdatingNavigationSelection = false
     }
 
     private func appVersionString() -> String {
@@ -609,57 +593,18 @@ class SettingsView: NSView {
         return "v\(short)"
     }
 
-    private func makeBuildConfigurationBadge() -> NSView {
-        #if DEBUG
-        let title = "DEBUG"
-        let color = NSColor.systemOrange
-        #else
-        let title = "RELEASE"
-        let color = NSColor.systemGreen
-        #endif
-
-        let badge = NSView()
-        badge.wantsLayer = true
-        badge.layer?.cornerRadius = 4
-        badge.layer?.cornerCurve = .continuous
-        badge.layer?.backgroundColor = color.withAlphaComponent(0.18).cgColor
-        badge.translatesAutoresizingMaskIntoConstraints = false
-
-        let label = NSTextField(labelWithString: title)
-        label.font = NSFont.systemFont(ofSize: 9, weight: .semibold)
-        label.textColor = color
-        label.translatesAutoresizingMaskIntoConstraints = false
-        badge.addSubview(label)
-
-        NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: badge.topAnchor, constant: 2),
-            label.bottomAnchor.constraint(equalTo: badge.bottomAnchor, constant: -2),
-            label.leadingAnchor.constraint(equalTo: badge.leadingAnchor, constant: 6),
-            label.trailingAnchor.constraint(equalTo: badge.trailingAnchor, constant: -6),
-        ])
-        badge.setContentHuggingPriority(.required, for: .horizontal)
-        badge.setContentCompressionResistancePriority(.required, for: .horizontal)
-        return badge
-    }
-
-    @objc private func tabClicked(_ sender: TabButton) {
-        selectTab(sender.tab)
-    }
-
-    private func selectTab(_ tab: SettingsTab) {
-        // Drop the Upload tab's in-memory log when navigating away so it
-        // starts fresh next time the user opens it.
+    private func selectTab(_ tab: SettingsTab, fromSidebar: Bool = false) {
         if selectedTab == .upload && tab != .upload {
             uploadPane?.clearLogs()
         }
         if selectedTab == .toolbar && tab != .toolbar {
             toolbarPane?.cancelShortcutRecording()
         }
-        window?.makeFirstResponder(nil)
-        selectedTab = tab
-        for btn in tabButtons {
-            btn.isSelected = (btn.tab == tab)
+        if !fromSidebar {
+            window?.makeFirstResponder(self)
         }
+        selectedTab = tab
+        refreshNavigationSelection(scrollToSelection: !fromSidebar)
         detailTitleLabel?.stringValue = tab.title
 
         // Rebuild the mic device list on every visit so hot-plugs appear.
@@ -678,27 +623,24 @@ class SettingsView: NSView {
             pane.trailingAnchor.constraint(equalTo: paneContainer.trailingAnchor),
             pane.bottomAnchor.constraint(equalTo: paneContainer.bottomAnchor),
         ])
-        layoutSubtreeIfNeeded()
+        if window != nil {
+            layoutSubtreeIfNeeded()
+        }
         detailScrollView.contentView.scroll(to: .zero)
         detailScrollView.reflectScrolledClipView(detailScrollView.contentView)
     }
 
     // MARK: - Detail panel
 
-    private func buildDetailPanel() -> NSView {
-        let panel = DetailPanel()
-        panel.translatesAutoresizingMaskIntoConstraints = false
+    private func buildDetailPanel() {
+        let safeArea = safeAreaLayoutGuide
 
-        // Title
         let title = NSTextField(labelWithString: SettingsTab.general.title)
-        title.font = NSFont.systemFont(ofSize: 20, weight: .bold)
-        title.textColor = NSColor.white.withAlphaComponent(0.96)
+        title.font = .systemFont(ofSize: 24, weight: .semibold)
         title.translatesAutoresizingMaskIntoConstraints = false
-        panel.addSubview(title)
+        addSubview(title)
         detailTitleLabel = title
 
-        // Scroll view fills the rest of the panel — the launch / quit action
-        // lives in the sidebar bottom now, freeing the right-pane footer.
         let scroll = NSScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.drawsBackground = false
@@ -706,7 +648,8 @@ class SettingsView: NSView {
         scroll.hasHorizontalScroller = false
         scroll.autohidesScrollers = true
         scroll.verticalScrollElasticity = .allowed
-        panel.addSubview(scroll)
+        scroll.automaticallyAdjustsContentInsets = false
+        addSubview(scroll)
         detailScrollView = scroll
 
         let container = FlippedView()
@@ -715,22 +658,19 @@ class SettingsView: NSView {
         paneContainer = container
 
         NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 10),
-            title.topAnchor.constraint(equalTo: panel.topAnchor, constant: 18),
-            title.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 22),
-            title.trailingAnchor.constraint(lessThanOrEqualTo: panel.trailingAnchor, constant: -22),
-
-            scroll.leadingAnchor.constraint(equalTo: panel.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: panel.trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: panel.bottomAnchor),
+            title.topAnchor.constraint(equalTo: safeArea.topAnchor, constant: 18),
+            title.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor, constant: 24),
+            title.trailingAnchor.constraint(lessThanOrEqualTo: safeArea.trailingAnchor, constant: -24),
+            scroll.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 12),
+            scroll.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
 
             container.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
             container.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
             container.trailingAnchor.constraint(equalTo: scroll.contentView.trailingAnchor),
             container.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
         ])
-
-        return panel
     }
 
     // MARK: - Pane builders
@@ -742,10 +682,10 @@ class SettingsView: NSView {
         let history = paneStack()
         let files = paneStack()
 
-        let togglesCard = CardView()
+        let togglesCard = SettingsGroupView()
         let togglesInner = verticalInnerStack()
-        togglesCard.addSubview(togglesInner)
-        pin(togglesInner, to: togglesCard, insets: NSEdgeInsets(top: 14, left: 14, bottom: 6, right: 14))
+        togglesCard.content.addSubview(togglesInner)
+        pin(togglesInner, to: togglesCard.content, insets: NSEdgeInsets(top: 14, left: 14, bottom: 6, right: 14))
         let langRow = NSStackView()
         langRow.orientation = .horizontal
         langRow.alignment = .centerY
@@ -810,10 +750,10 @@ class SettingsView: NSView {
 
         buildCountdownCard(into: capture)
         buildWindowShadowCard(into: capture)
-        let pinCard = CardView()
+        let pinCard = SettingsGroupView()
         let pinInner = verticalInnerStack()
-        pinCard.addSubview(pinInner)
-        pin(pinInner, to: pinCard, insets: NSEdgeInsets(top: 6, left: 14, bottom: 6, right: 14))
+        pinCard.content.addSubview(pinInner)
+        pin(pinInner, to: pinCard.content, insets: NSEdgeInsets(top: 6, left: 14, bottom: 6, right: 14))
         let pinAcrossSpaces = makeToggleRow(
             title: L10n.pinAcrossSpaces,
             subtitle: L10n.pinAcrossSpacesHint,
@@ -848,14 +788,14 @@ class SettingsView: NSView {
     /// Window-capture shadow card: a toggle for the rounded-corner + drop
     /// shadow effect, a size slider, and a live preview of the result.
     private func buildWindowShadowCard(into stack: NSStackView) {
-        let card = CardView()
+        let card = SettingsGroupView()
         let inner = NSStackView()
         inner.orientation = .vertical
         inner.alignment = .leading
         inner.spacing = 10
         inner.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(inner)
-        pin(inner, to: card, insets: NSEdgeInsets(top: 4, left: 14, bottom: 14, right: 14))
+        card.content.addSubview(inner)
+        pin(inner, to: card.content, insets: NSEdgeInsets(top: 4, left: 14, bottom: 14, right: 14))
 
         // Enable toggle
         let toggle = makeToggleRow(
@@ -887,7 +827,7 @@ class SettingsView: NSView {
 
         windowShadowSizeValueLabel = NSTextField(labelWithString: "\(Int(Defaults.windowShadowSize.rounded()))")
         windowShadowSizeValueLabel.font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-        windowShadowSizeValueLabel.textColor = NSColor.white.withAlphaComponent(0.88)
+        windowShadowSizeValueLabel.textColor = .labelColor
         header.addArrangedSubview(windowShadowSizeValueLabel)
 
         inner.addArrangedSubview(header)
@@ -931,21 +871,21 @@ class SettingsView: NSView {
     private func updateWindowShadowControlsEnabled() {
         let on = Defaults.windowShadowEnabled
         windowShadowSlider?.isEnabled = on
-        windowShadowSizeTitleLabel?.textColor = NSColor.white.withAlphaComponent(on ? 0.94 : 0.4)
-        windowShadowSizeValueLabel?.textColor = NSColor.white.withAlphaComponent(on ? 0.88 : 0.4)
+        windowShadowSizeTitleLabel?.textColor = on ? .labelColor : .tertiaryLabelColor
+        windowShadowSizeValueLabel?.textColor = on ? .labelColor : .tertiaryLabelColor
         windowShadowPreview?.isEffectEnabled = on
     }
 
     private func updateHistoryCacheControlsEnabled() {
         let mediaOn = Defaults.historyCacheEnabled
         historyCacheSlider?.isEnabled = mediaOn
-        historyCacheTitleLabel?.textColor = NSColor.white.withAlphaComponent(mediaOn ? 0.94 : 0.4)
-        historyCacheValueLabel?.textColor = NSColor.white.withAlphaComponent(mediaOn ? 0.88 : 0.4)
+        historyCacheTitleLabel?.textColor = mediaOn ? .labelColor : .tertiaryLabelColor
+        historyCacheValueLabel?.textColor = mediaOn ? .labelColor : .tertiaryLabelColor
 
         let textOn = Defaults.clipboardTextCacheEnabled
         clipboardTextHistoryLimitSlider?.isEnabled = textOn
-        clipboardTextHistoryLimitTitleLabel?.textColor = NSColor.white.withAlphaComponent(textOn ? 0.94 : 0.4)
-        clipboardTextHistoryLimitValueLabel?.textColor = NSColor.white.withAlphaComponent(textOn ? 0.88 : 0.4)
+        clipboardTextHistoryLimitTitleLabel?.textColor = textOn ? .labelColor : .tertiaryLabelColor
+        clipboardTextHistoryLimitValueLabel?.textColor = textOn ? .labelColor : .tertiaryLabelColor
     }
 
     private func updateHistoryPanelModeControlsEnabled() {
@@ -964,14 +904,14 @@ class SettingsView: NSView {
         historyNotchTriggerPopup?.isEnabled = triggerEnabled
         historyNotchTriggerPopup?.selectItem(at: Defaults.HistoryNotchTriggerMode.allCases.firstIndex(of: Defaults.historyNotchTriggerMode) ?? 0)
         historyNotchTriggerRow?.isHidden = mode != .notch
-        historyNotchTriggerLabel?.textColor = NSColor.white.withAlphaComponent(triggerEnabled ? 0.94 : 0.4)
+        historyNotchTriggerLabel?.textColor = triggerEnabled ? .labelColor : .tertiaryLabelColor
 
-        historyPanelDisplayModeTitleLabel?.textColor = NSColor.white.withAlphaComponent(on ? 0.94 : 0.4)
-        historyPanelDisplayModeHintLabel?.textColor = NSColor.white.withAlphaComponent(on ? 0.58 : 0.35)
-        historyPanelDialogModeTitleLabel?.textColor = NSColor.white.withAlphaComponent(dialogEnabled ? 0.94 : 0.4)
-        historyPanelDialogModeHintLabel?.textColor = NSColor.white.withAlphaComponent(dialogEnabled ? 0.58 : 0.35)
-        historyPanelNotchModeTitleLabel?.textColor = NSColor.white.withAlphaComponent(notchEnabled ? 0.94 : 0.4)
-        historyPanelNotchModeHintLabel?.textColor = NSColor.white.withAlphaComponent(notchEnabled ? 0.58 : 0.35)
+        historyPanelDisplayModeTitleLabel?.textColor = on ? .labelColor : .tertiaryLabelColor
+        historyPanelDisplayModeHintLabel?.textColor = on ? .secondaryLabelColor : .tertiaryLabelColor
+        historyPanelDialogModeTitleLabel?.textColor = dialogEnabled ? .labelColor : .tertiaryLabelColor
+        historyPanelDialogModeHintLabel?.textColor = dialogEnabled ? .secondaryLabelColor : .tertiaryLabelColor
+        historyPanelNotchModeTitleLabel?.textColor = notchEnabled ? .labelColor : .tertiaryLabelColor
+        historyPanelNotchModeHintLabel?.textColor = notchEnabled ? .secondaryLabelColor : .tertiaryLabelColor
     }
 
     private func selectedHistoryPanelMode() -> HistoryPanelSettingsMode {
@@ -1051,7 +991,7 @@ class SettingsView: NSView {
     private func updateMicrophoneControlsEnabled() {
         let enabled = Defaults.recordingMicrophoneEnabled
         recordingMicrophoneDevicePopup?.isEnabled = enabled
-        recordingMicrophoneDeviceTitleLabel?.textColor = NSColor.white.withAlphaComponent(enabled ? 0.94 : 0.4)
+        recordingMicrophoneDeviceTitleLabel?.textColor = enabled ? .labelColor : .tertiaryLabelColor
     }
 
     @objc private func recordingMicrophoneDeviceChanged(_ sender: NSPopUpButton) {
@@ -1347,14 +1287,14 @@ class SettingsView: NSView {
 
     private func buildHistoryCards(into stack: NSStackView) {
         // History cache card
-        let historyCard = CardView()
+        let historyCard = SettingsGroupView()
         let historyInner = NSStackView()
         historyInner.orientation = .vertical
         historyInner.alignment = .leading
         historyInner.spacing = 10
         historyInner.translatesAutoresizingMaskIntoConstraints = false
-        historyCard.addSubview(historyInner)
-        pin(historyInner, to: historyCard, insets: NSEdgeInsets(top: 4, left: 14, bottom: 14, right: 14))
+        historyCard.content.addSubview(historyInner)
+        pin(historyInner, to: historyCard.content, insets: NSEdgeInsets(top: 4, left: 14, bottom: 14, right: 14))
 
         let historyToggle = makeToggleRow(
             title: L10n.historyCacheToggleLabel,
@@ -1380,21 +1320,23 @@ class SettingsView: NSView {
 
         historyCacheValueLabel = NSTextField(labelWithString: "\(Defaults.historyCacheLimit)")
         historyCacheValueLabel.font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-        historyCacheValueLabel.textColor = NSColor.white.withAlphaComponent(0.88)
+        historyCacheValueLabel.textColor = .labelColor
         historyHeader.addArrangedSubview(historyCacheValueLabel)
 
         historyInner.addArrangedSubview(historyHeader)
         historyHeader.widthAnchor.constraint(equalTo: historyInner.widthAnchor).isActive = true
 
-        let slider = SettingsTickSlider(
+        let slider = NSSlider(
             value: Double(Defaults.historyCacheLimit),
             minValue: Double(Defaults.historyCacheMin),
             maxValue: Double(Defaults.historyCacheMax),
-            stepValue: Double(Defaults.historyCacheStep),
-            numberOfTickMarks: (Defaults.historyCacheMax - Defaults.historyCacheMin) / Defaults.historyCacheStep + 1,
             target: self,
             action: #selector(historyCacheSliderChanged(_:))
         )
+        slider.numberOfTickMarks = (Defaults.historyCacheMax - Defaults.historyCacheMin) / Defaults.historyCacheStep + 1
+        slider.allowsTickMarkValuesOnly = true
+        slider.isContinuous = true
+        slider.setAccessibilityTitleUIElement(historyCacheTitleLabel)
         slider.translatesAutoresizingMaskIntoConstraints = false
         historyCacheSlider = slider
         historyInner.addArrangedSubview(slider)
@@ -1430,22 +1372,24 @@ class SettingsView: NSView {
             labelWithString: "\(Defaults.clipboardTextHistoryLimit)"
         )
         clipboardTextHistoryLimitValueLabel.font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-        clipboardTextHistoryLimitValueLabel.textColor = NSColor.white.withAlphaComponent(0.88)
+        clipboardTextHistoryLimitValueLabel.textColor = .labelColor
         clipboardTextHistoryHeader.addArrangedSubview(clipboardTextHistoryLimitValueLabel)
 
         historyInner.addArrangedSubview(clipboardTextHistoryHeader)
         clipboardTextHistoryHeader.widthAnchor.constraint(equalTo: historyInner.widthAnchor).isActive = true
 
-        let clipboardTextSlider = SettingsTickSlider(
+        let clipboardTextSlider = NSSlider(
             value: Double(Defaults.clipboardTextHistoryLimit),
             minValue: Double(Defaults.clipboardTextHistoryLimitMin),
             maxValue: Double(Defaults.clipboardTextHistoryLimitMax),
-            stepValue: Double(Defaults.clipboardTextHistoryLimitStep),
-            numberOfTickMarks: (Defaults.clipboardTextHistoryLimitMax - Defaults.clipboardTextHistoryLimitMin)
-                / Defaults.clipboardTextHistoryLimitStep + 1,
             target: self,
             action: #selector(clipboardTextHistoryLimitSliderChanged(_:))
         )
+        clipboardTextSlider.numberOfTickMarks = (Defaults.clipboardTextHistoryLimitMax - Defaults.clipboardTextHistoryLimitMin)
+            / Defaults.clipboardTextHistoryLimitStep + 1
+        clipboardTextSlider.allowsTickMarkValuesOnly = true
+        clipboardTextSlider.isContinuous = true
+        clipboardTextSlider.setAccessibilityTitleUIElement(clipboardTextHistoryLimitTitleLabel)
         clipboardTextSlider.translatesAutoresizingMaskIntoConstraints = false
         clipboardTextHistoryLimitSlider = clipboardTextSlider
         historyInner.addArrangedSubview(clipboardTextSlider)
@@ -1462,14 +1406,14 @@ class SettingsView: NSView {
 
     private func buildCountdownCard(into stack: NSStackView) {
         // Countdown card
-        let countdownCard = CardView()
+        let countdownCard = SettingsGroupView()
         let countdownInner = NSStackView()
         countdownInner.orientation = .vertical
         countdownInner.alignment = .leading
         countdownInner.spacing = 10
         countdownInner.translatesAutoresizingMaskIntoConstraints = false
-        countdownCard.addSubview(countdownInner)
-        pin(countdownInner, to: countdownCard, insets: NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14))
+        countdownCard.content.addSubview(countdownInner)
+        pin(countdownInner, to: countdownCard.content, insets: NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14))
 
         let countdownHeader = NSStackView()
         countdownHeader.orientation = .horizontal
@@ -1483,21 +1427,23 @@ class SettingsView: NSView {
 
         countdownValueLabel = NSTextField(labelWithString: "\(Defaults.countdownSeconds)\(L10n.countdownSecondsSuffix)")
         countdownValueLabel.font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-        countdownValueLabel.textColor = NSColor.white.withAlphaComponent(0.88)
+        countdownValueLabel.textColor = .labelColor
         countdownHeader.addArrangedSubview(countdownValueLabel)
 
         countdownInner.addArrangedSubview(countdownHeader)
         countdownHeader.widthAnchor.constraint(equalTo: countdownInner.widthAnchor).isActive = true
 
-        let cdSlider = SettingsTickSlider(
+        let cdSlider = NSSlider(
             value: Double(Defaults.countdownSeconds),
             minValue: Double(Defaults.countdownSecondsMin),
             maxValue: Double(Defaults.countdownSecondsMax),
-            stepValue: 1,
-            numberOfTickMarks: Defaults.countdownSecondsMax - Defaults.countdownSecondsMin + 1,
             target: self,
             action: #selector(countdownSliderChanged(_:))
         )
+        cdSlider.numberOfTickMarks = Defaults.countdownSecondsMax - Defaults.countdownSecondsMin + 1
+        cdSlider.allowsTickMarkValuesOnly = true
+        cdSlider.isContinuous = true
+        cdSlider.setAccessibilityTitleUIElement(countdownTitleLabel)
         cdSlider.translatesAutoresizingMaskIntoConstraints = false
         countdownSlider = cdSlider
         countdownInner.addArrangedSubview(cdSlider)
@@ -1512,14 +1458,14 @@ class SettingsView: NSView {
     }
 
     private func buildHistoryPanelModeCard(into stack: NSStackView) {
-        let card = CardView()
+        let card = SettingsGroupView()
         let inner = NSStackView()
         inner.orientation = .vertical
         inner.alignment = .leading
         inner.spacing = 14
         inner.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(inner)
-        pin(inner, to: card, insets: NSEdgeInsets(top: 14, left: 16, bottom: 16, right: 16))
+        card.content.addSubview(inner)
+        pin(inner, to: card.content, insets: NSEdgeInsets(top: 14, left: 16, bottom: 16, right: 16))
 
         historyPanelDisplayModeTitleLabel = primaryLabel(L10n.historyPanelDisplayModeLabel)
         historyPanelDisplayModeHintLabel = secondaryLabel(L10n.historyPanelDisplayModeHint, wrapping: true)
@@ -1598,14 +1544,14 @@ class SettingsView: NSView {
     }
 
     private func buildScreenshotQualityCard(into stack: NSStackView) {
-        let card = CardView()
+        let card = SettingsGroupView()
         let inner = NSStackView()
         inner.orientation = .vertical
         inner.alignment = .leading
         inner.spacing = 10
         inner.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(inner)
-        pin(inner, to: card, insets: NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14))
+        card.content.addSubview(inner)
+        pin(inner, to: card.content, insets: NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14))
 
         let header = NSStackView()
         header.orientation = .vertical
@@ -1709,14 +1655,14 @@ class SettingsView: NSView {
     }
 
     private func buildSavePathCard(into stack: NSStackView) {
-        let card = CardView()
+        let card = SettingsGroupView()
         let inner = NSStackView()
         inner.orientation = .vertical
         inner.alignment = .leading
         inner.spacing = 10
         inner.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(inner)
-        pin(inner, to: card, insets: NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14))
+        card.content.addSubview(inner)
+        pin(inner, to: card.content, insets: NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14))
 
         let header = NSStackView()
         header.orientation = .vertical
@@ -1807,10 +1753,10 @@ class SettingsView: NSView {
     }
 
     private func buildRecordingCard(into stack: NSStackView) {
-        let card = CardView()
+        let card = SettingsGroupView()
         let inner = paneStack()
-        card.addSubview(inner)
-        pin(inner, to: card, insets: NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14))
+        card.content.addSubview(inner)
+        pin(inner, to: card.content, insets: NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14))
         let formatRow = NSStackView()
         formatRow.orientation = .horizontal
         formatRow.alignment = .centerY
@@ -1987,10 +1933,10 @@ class SettingsView: NSView {
     private func buildPermissionsPane() -> NSView {
         let stack = paneStack()
 
-        let permCard = CardView()
+        let permCard = SettingsGroupView()
         let permInner = verticalInnerStack()
-        permCard.addSubview(permInner)
-        pin(permInner, to: permCard, insets: NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0))
+        permCard.content.addSubview(permInner)
+        pin(permInner, to: permCard.content, insets: NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0))
 
         let acc = makePermissionRow(
             name: L10n.accessibilityPermission,
@@ -2042,14 +1988,14 @@ class SettingsView: NSView {
         let stack = paneStack()
 
         // Header card — app icon, name and version.
-        let headerCard = CardView()
+        let headerCard = SettingsGroupView()
         let headerRow = NSStackView()
         headerRow.orientation = .horizontal
         headerRow.alignment = .centerY
         headerRow.spacing = 14
         headerRow.translatesAutoresizingMaskIntoConstraints = false
-        headerCard.addSubview(headerRow)
-        pin(headerRow, to: headerCard, insets: NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
+        headerCard.content.addSubview(headerRow)
+        pin(headerRow, to: headerCard.content, insets: NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
 
         let iconView = NSImageView()
         iconView.image = NSApp.applicationIconImage
@@ -2061,21 +2007,16 @@ class SettingsView: NSView {
 
         let nameLabel = NSTextField(labelWithString: "capcap")
         nameLabel.font = NSFont.systemFont(ofSize: 18, weight: .bold)
-        nameLabel.textColor = NSColor.white.withAlphaComponent(0.96)
+        nameLabel.textColor = .labelColor
 
         let versionLabel = NSTextField(labelWithString: appVersionString())
         versionLabel.font = NSFont.systemFont(ofSize: 12, weight: .regular)
-        versionLabel.textColor = NSColor.white.withAlphaComponent(0.55)
-
-        let versionRow = NSStackView(views: [versionLabel, makeBuildConfigurationBadge()])
-        versionRow.orientation = .horizontal
-        versionRow.alignment = .centerY
-        versionRow.spacing = 6
+        versionLabel.textColor = .secondaryLabelColor
 
         let taglineLabel = secondaryLabel(L10n.aboutTagline, wrapping: true)
         aboutTaglineLabel = taglineLabel
 
-        let textStack = NSStackView(views: [nameLabel, versionRow, taglineLabel])
+        let textStack = NSStackView(views: [nameLabel, versionLabel, taglineLabel])
         textStack.orientation = .vertical
         textStack.alignment = .leading
         textStack.spacing = 3
@@ -2087,10 +2028,10 @@ class SettingsView: NSView {
         headerCard.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
 
         // Info card — license + source link rows.
-        let infoCard = CardView()
+        let infoCard = SettingsGroupView()
         let infoInner = verticalInnerStack()
-        infoCard.addSubview(infoInner)
-        pin(infoInner, to: infoCard, insets: NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0))
+        infoCard.content.addSubview(infoInner)
+        pin(infoInner, to: infoCard.content, insets: NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0))
 
         let updateRow = makeUpdateRow()
         infoInner.addArrangedSubview(updateRow)
@@ -2157,8 +2098,7 @@ class SettingsView: NSView {
     /// Builds the expandable "Error Log" card for the About pane. The header is
     /// a clickable row; tapping it animates the crash-log viewer open or shut.
     private func buildErrorLogCard() -> NSView {
-        let card = CardView()
-        card.layer?.masksToBounds = true
+        let card = SettingsGroupView()
 
         // Clickable header — toggles the expand / collapse animation.
         let header = HoverButton()
@@ -2175,7 +2115,7 @@ class SettingsView: NSView {
 
         let statusLabel = NSTextField(labelWithString: "")
         statusLabel.font = NSFont.systemFont(ofSize: 12, weight: .regular)
-        statusLabel.textColor = NSColor.white.withAlphaComponent(0.55)
+        statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         errorLogStatusLabel = statusLabel
@@ -2191,7 +2131,7 @@ class SettingsView: NSView {
 
         let chevron = NSImageView(frame: NSRect(x: 0, y: 0, width: 12, height: 12))
         chevron.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
-        chevron.contentTintColor = NSColor.white.withAlphaComponent(0.32)
+        chevron.contentTintColor = .tertiaryLabelColor
         chevron.imageScaling = .scaleProportionallyUpOrDown
         chevron.wantsLayer = true
         chevron.autoresizingMask = []
@@ -2229,7 +2169,7 @@ class SettingsView: NSView {
         let scroll = NSScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.drawsBackground = true
-        scroll.backgroundColor = NSColor.black.withAlphaComponent(0.22)
+        scroll.backgroundColor = .textBackgroundColor
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = false
         scroll.autohidesScrollers = true
@@ -2242,7 +2182,7 @@ class SettingsView: NSView {
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
-        textView.textColor = NSColor.white.withAlphaComponent(0.82)
+        textView.textColor = .labelColor
         textView.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         textView.textContainerInset = NSSize(width: 8, height: 8)
         textView.minSize = NSSize(width: 0, height: 0)
@@ -2307,8 +2247,8 @@ class SettingsView: NSView {
         ])
 
         let inner = verticalInnerStack()
-        card.addSubview(inner)
-        pin(inner, to: card, insets: NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0))
+        card.content.addSubview(inner)
+        pin(inner, to: card.content, insets: NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0))
         inner.addArrangedSubview(header)
         inner.addArrangedSubview(content)
         header.widthAnchor.constraint(equalTo: inner.widthAnchor).isActive = true
@@ -2368,13 +2308,13 @@ class SettingsView: NSView {
         errorLogLoaded = true
         if let entry = errorLogEntry {
             errorLogTextView?.string = CrashLogReader.readableText(at: entry.url)
-            errorLogTextView?.textColor = NSColor.white.withAlphaComponent(0.82)
+            errorLogTextView?.textColor = .labelColor
             errorLogCopyButton?.isEnabled = true
             errorLogRevealButton?.isEnabled = true
             errorLogClearButton?.isEnabled = true
         } else {
             errorLogTextView?.string = L10n.aboutErrorLogEmptyBody
-            errorLogTextView?.textColor = NSColor.white.withAlphaComponent(0.55)
+            errorLogTextView?.textColor = .secondaryLabelColor
             errorLogCopyButton?.isEnabled = false
             errorLogRevealButton?.isEnabled = false
             errorLogClearButton?.isEnabled = false
@@ -2389,13 +2329,13 @@ class SettingsView: NSView {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd HH:mm"
             label.stringValue = L10n.aboutErrorLogLastCrash(formatter.string(from: entry.date))
-            label.textColor = NSColor(calibratedRed: 0.95, green: 0.55, blue: 0.45, alpha: 1.0)
+            label.textColor = NSColor.systemOrange
             errorLogCopyButton?.isEnabled = errorLogLoaded
             errorLogRevealButton?.isEnabled = errorLogLoaded
             errorLogClearButton?.isEnabled = true
         } else {
             label.stringValue = L10n.aboutErrorLogNoCrash
-            label.textColor = NSColor.white.withAlphaComponent(0.55)
+            label.textColor = .secondaryLabelColor
             errorLogCopyButton?.isEnabled = false
             errorLogRevealButton?.isEnabled = false
             errorLogClearButton?.isEnabled = false
@@ -2436,7 +2376,7 @@ class SettingsView: NSView {
         errorLogEntry = nil
         errorLogLoaded = true
         errorLogTextView?.string = L10n.aboutErrorLogEmptyBody
-        errorLogTextView?.textColor = NSColor.white.withAlphaComponent(0.55)
+        errorLogTextView?.textColor = .secondaryLabelColor
         errorLogCopyButton?.isEnabled = false
         errorLogRevealButton?.isEnabled = false
         errorLogClearButton?.isEnabled = false
@@ -2453,7 +2393,7 @@ class SettingsView: NSView {
 
         let valueLabel = NSTextField(labelWithString: value)
         valueLabel.font = NSFont.systemFont(ofSize: 12, weight: .regular)
-        valueLabel.textColor = NSColor.white.withAlphaComponent(0.55)
+        valueLabel.textColor = .secondaryLabelColor
         valueLabel.translatesAutoresizingMaskIntoConstraints = false
 
         row.addSubview(titleLabel)
@@ -2484,13 +2424,13 @@ class SettingsView: NSView {
 
         let valueLabel = NSTextField(labelWithString: value)
         valueLabel.font = NSFont.systemFont(ofSize: 12, weight: .regular)
-        valueLabel.textColor = NSColor(calibratedRed: 0.42, green: 0.66, blue: 0.98, alpha: 1.0)
+        valueLabel.textColor = NSColor.linkColor
         valueLabel.translatesAutoresizingMaskIntoConstraints = false
         valueLabel.setContentHuggingPriority(.required, for: .horizontal)
 
         let chevron = NSTextField(labelWithString: "\u{203A}")
         chevron.font = NSFont.systemFont(ofSize: 18, weight: .regular)
-        chevron.textColor = NSColor.white.withAlphaComponent(0.32)
+        chevron.textColor = .tertiaryLabelColor
         chevron.translatesAutoresizingMaskIntoConstraints = false
         chevron.setContentHuggingPriority(.required, for: .horizontal)
 
@@ -2546,7 +2486,7 @@ class SettingsView: NSView {
 
         let statusLabel = NSTextField(labelWithString: "")
         statusLabel.font = NSFont.systemFont(ofSize: 12, weight: .regular)
-        statusLabel.textColor = NSColor.white.withAlphaComponent(0.55)
+        statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         aboutUpdateStatusLabel = statusLabel
@@ -2599,9 +2539,9 @@ class SettingsView: NSView {
     /// Syncs the Updates row to the current check state.
     @objc private func refreshUpdateRow() {
         guard let statusLabel = aboutUpdateStatusLabel, let button = aboutUpdateButton else { return }
-        let dim = NSColor.white.withAlphaComponent(0.55)
-        let accent = NSColor(calibratedRed: 0.42, green: 0.66, blue: 0.98, alpha: 1.0)
-        let warn = NSColor(calibratedRed: 0.95, green: 0.55, blue: 0.45, alpha: 1.0)
+        let dim = NSColor.secondaryLabelColor
+        let accent = NSColor.linkColor
+        let warn = NSColor.systemOrange
 
         switch UpdateChecker.shared.state {
         case .idle:
@@ -2681,9 +2621,8 @@ class SettingsView: NSView {
     }
 
     private func rowDivider() -> NSView {
-        let v = NSView()
-        v.wantsLayer = true
-        v.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
+        let v = NSBox()
+        v.boxType = .separator
         v.translatesAutoresizingMaskIntoConstraints = false
         v.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return v
@@ -2700,14 +2639,14 @@ class SettingsView: NSView {
     private func primaryLabel(_ text: String) -> NSTextField {
         let l = NSTextField(labelWithString: text)
         l.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        l.textColor = NSColor.white.withAlphaComponent(0.94)
+        l.textColor = .labelColor
         return l
     }
 
     private func secondaryLabel(_ text: String, wrapping: Bool = false) -> NSTextField {
         let l = wrapping ? NSTextField(wrappingLabelWithString: text) : NSTextField(labelWithString: text)
-        l.font = NSFont.systemFont(ofSize: 11)
-        l.textColor = NSColor.white.withAlphaComponent(0.58)
+        l.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        l.textColor = .secondaryLabelColor
         if wrapping {
             l.preferredMaxLayoutWidth = 360
         }
@@ -2724,7 +2663,7 @@ class SettingsView: NSView {
     }
 
     private struct ShortcutCardBuild {
-        let card: CardView
+        let card: SettingsGroupView
         let title: NSTextField
         let field: NSTextField
         let setButton: NSButton
@@ -2736,14 +2675,14 @@ class SettingsView: NSView {
         setAction: Selector,
         restoreAction: Selector
     ) -> ShortcutCardBuild {
-        let card = CardView()
+        let card = SettingsGroupView()
         let inner = NSStackView()
         inner.orientation = .vertical
         inner.alignment = .leading
         inner.spacing = 8
         inner.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(inner)
-        pin(inner, to: card, insets: NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14))
+        card.content.addSubview(inner)
+        pin(inner, to: card.content, insets: NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14))
 
         let row = NSStackView()
         row.orientation = .horizontal
@@ -2762,16 +2701,10 @@ class SettingsView: NSView {
         field.drawsBackground = false
         field.alignment = .center
         field.font = NSFont.systemFont(ofSize: 12, weight: .medium)
-        field.textColor = NSColor.white.withAlphaComponent(0.92)
+        field.textColor = .labelColor
         field.translatesAutoresizingMaskIntoConstraints = false
 
-        let fieldBackground = NSView()
-        fieldBackground.wantsLayer = true
-        fieldBackground.layer?.cornerRadius = 5
-        fieldBackground.layer?.cornerCurve = .continuous
-        fieldBackground.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        fieldBackground.layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        fieldBackground.layer?.borderWidth = 1
+        let fieldBackground = AdaptiveChromeSurfaceView(style: .card, cornerRadius: 6)
         fieldBackground.translatesAutoresizingMaskIntoConstraints = false
         fieldBackground.addSubview(field)
         NSLayoutConstraint.activate([
@@ -2801,7 +2734,7 @@ class SettingsView: NSView {
         restoreButton.bezelStyle = .inline
         restoreButton.isBordered = false
         restoreButton.imagePosition = .imageOnly
-        restoreButton.contentTintColor = NSColor.white.withAlphaComponent(0.62)
+        restoreButton.contentTintColor = .secondaryLabelColor
         restoreButton.toolTip = L10n.shortcutRestore
         restoreButton.translatesAutoresizingMaskIntoConstraints = false
         restoreButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
@@ -2856,7 +2789,8 @@ class SettingsView: NSView {
         sw.state = isOn ? .on : .off
         sw.target = self
         sw.action = action
-        sw.controlSize = .small
+        sw.controlSize = .regular
+        sw.setAccessibilityTitleUIElement(titleLabel)
         sw.translatesAutoresizingMaskIntoConstraints = false
 
         row.addSubview(textStack)
@@ -2910,6 +2844,7 @@ class SettingsView: NSView {
 
         let button = NSButton(radioButtonWithTitle: "", target: self, action: action)
         button.state = isOn ? .on : .off
+        button.setAccessibilityTitleUIElement(titleLabel)
         button.controlSize = .small
         button.translatesAutoresizingMaskIntoConstraints = false
 
@@ -2974,7 +2909,7 @@ class SettingsView: NSView {
 
         let chevron = NSTextField(labelWithString: "\u{203A}")
         chevron.font = NSFont.systemFont(ofSize: 18, weight: .regular)
-        chevron.textColor = NSColor.white.withAlphaComponent(0.32)
+        chevron.textColor = .tertiaryLabelColor
         chevron.translatesAutoresizingMaskIntoConstraints = false
         chevron.setContentHuggingPriority(.required, for: .horizontal)
 
@@ -2993,30 +2928,19 @@ class SettingsView: NSView {
         return PermissionRowBuild(row: button, name: nameLbl, desc: descLbl, badge: badge)
     }
 
-    private func updateLaunchButtonVisibility() {
-        // The bottom action is always visible now — its title and enablement
-        // flips between Launch (startup mode) and Quit (regular mode).
-        refreshBottomAction()
-    }
-
     private func refreshBottomAction() {
-        guard let btn = launchButton else { return }
-        if isStartup {
-            let allGranted = AppPermissions.allRequiredGranted
-            btn.update(symbolName: "power", title: L10n.launchApp, tint: .systemGreen)
-            btn.isEnabled = allGranted
-        } else {
-            // Red tint — actual destructive confirmation happens in the NSAlert
-            // sheet that fires on click.
-            btn.update(symbolName: "power", title: L10n.settingsQuit, tint: .systemRed)
-            btn.isEnabled = true
+        launchButton.title = isStartup ? L10n.launchApp : L10n.settingsQuit
+        launchButton.isEnabled = !isStartup || AppPermissions.allRequiredGranted
+        launchButton.keyEquivalent = isStartup ? "\r" : ""
+        if #available(macOS 26.0, *) {
+            launchButton.bezelStyle = isStartup ? .glass : .rounded
         }
     }
 
     func setStartupMode(_ startup: Bool) {
         let wasStartup = isStartup
         isStartup = startup
-        updateLaunchButtonVisibility()
+        refreshBottomAction()
         if startup {
             selectTab(.permissions)
         } else if wasStartup && selectedTab == .permissions && AppPermissions.allRequiredGranted {
@@ -3170,7 +3094,7 @@ class SettingsView: NSView {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
-    @objc private func historyCacheSliderChanged(_ sender: SettingsTickSlider) {
+    @objc private func historyCacheSliderChanged(_ sender: NSSlider) {
         guard Defaults.historyCacheEnabled else {
             sender.doubleValue = Double(Defaults.historyCacheLimit)
             return
@@ -3182,7 +3106,7 @@ class SettingsView: NSView {
         historyCacheValueLabel?.stringValue = "\(normalizedValue)"
     }
 
-    @objc private func clipboardTextHistoryLimitSliderChanged(_ sender: SettingsTickSlider) {
+    @objc private func clipboardTextHistoryLimitSliderChanged(_ sender: NSSlider) {
         guard Defaults.clipboardTextCacheEnabled else {
             sender.doubleValue = Double(Defaults.clipboardTextHistoryLimit)
             return
@@ -3230,7 +3154,7 @@ class SettingsView: NSView {
         updateHistoryPanelModeControlsEnabled()
     }
 
-    @objc private func countdownSliderChanged(_ sender: SettingsTickSlider) {
+    @objc private func countdownSliderChanged(_ sender: NSSlider) {
         let value = Int(sender.doubleValue.rounded())
         Defaults.countdownSeconds = value
         countdownValueLabel?.stringValue = "\(Defaults.countdownSeconds)\(L10n.countdownSecondsSuffix)"
@@ -5468,7 +5392,11 @@ class SettingsView: NSView {
         accessibilityBadge?.refreshTitle()
         screenRecordingBadge?.refreshTitle()
         microphoneBadge?.refreshTitle()
-        for btn in tabButtons { btn.refreshTitle() }
+        navigation.setAccessibilityLabel(L10n.settingsTitle)
+        isUpdatingNavigationSelection = true
+        navigation.reloadData()
+        isUpdatingNavigationSelection = false
+        refreshNavigationSelection(scrollToSelection: false)
         detailTitleLabel?.stringValue = selectedTab.title
         window?.title = L10n.settingsTitle
     }
@@ -5479,634 +5407,6 @@ class SettingsView: NSView {
 private final class FlippedView: NSView {
     override var isFlipped: Bool { true }
 }
-
-// MARK: - Sidebar / detail panels
-
-private final class SidebarPanel: NSView {
-    private var gradientLayer: CAGradientLayer?
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        commonInit()
-    }
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        commonInit()
-    }
-
-    private func commonInit() {
-        wantsLayer = true
-        layer?.cornerRadius = 22
-        layer?.cornerCurve = .continuous
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        layer?.borderWidth = 1
-
-        let g = CAGradientLayer()
-        g.colors = [
-            NSColor(calibratedRed: 0.11, green: 0.17, blue: 0.25, alpha: 1.0).cgColor,
-            NSColor(calibratedRed: 0.08, green: 0.12, blue: 0.18, alpha: 1.0).cgColor,
-        ]
-        g.startPoint = CGPoint(x: 0, y: 1)
-        g.endPoint = CGPoint(x: 1, y: 0)
-        g.cornerRadius = 22
-        layer?.insertSublayer(g, at: 0)
-        gradientLayer = g
-    }
-
-    override func layout() {
-        super.layout()
-        gradientLayer?.frame = bounds
-    }
-}
-
-private final class DetailPanel: NSView {
-    private var gradientLayer: CAGradientLayer?
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        commonInit()
-    }
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        commonInit()
-    }
-
-    private func commonInit() {
-        wantsLayer = true
-        layer?.cornerRadius = 24
-        layer?.cornerCurve = .continuous
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        layer?.borderWidth = 1
-
-        let g = CAGradientLayer()
-        g.colors = [
-            NSColor(calibratedRed: 0.13, green: 0.14, blue: 0.17, alpha: 1.0).cgColor,
-            NSColor(calibratedRed: 0.10, green: 0.11, blue: 0.13, alpha: 1.0).cgColor,
-        ]
-        g.startPoint = CGPoint(x: 0, y: 1)
-        g.endPoint = CGPoint(x: 1, y: 0)
-        g.cornerRadius = 24
-        layer?.insertSublayer(g, at: 0)
-        gradientLayer = g
-    }
-
-    override func layout() {
-        super.layout()
-        gradientLayer?.frame = bounds
-    }
-}
-
-/// A hairline that fades to transparent at both edges of the sidebar.
-private final class SidebarSeparatorView: NSView {
-    private let gradient = CAGradientLayer()
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = true
-        gradient.colors = [
-            NSColor.white.withAlphaComponent(0).cgColor,
-            NSColor.white.withAlphaComponent(0.18).cgColor,
-            NSColor.white.withAlphaComponent(0).cgColor,
-        ]
-        gradient.locations = [0, 0.5, 1]
-        gradient.startPoint = CGPoint(x: 0, y: 0.5)
-        gradient.endPoint = CGPoint(x: 1, y: 0.5)
-        layer?.addSublayer(gradient)
-        setAccessibilityElement(false)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func layout() {
-        super.layout()
-        let scale = window?.backingScaleFactor ?? 2
-        let thickness = 1 / scale
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        gradient.frame = CGRect(x: 0, y: (bounds.midY * scale).rounded() / scale,
-                                width: bounds.width, height: thickness)
-        CATransaction.commit()
-    }
-}
-
-// MARK: - Sidebar tab button
-
-private final class TabButton: NSControl {
-    let tab: SettingsTab
-    private let iconChip = NSView()
-    private let iconView = NSImageView()
-    private let label = NSTextField(labelWithString: "")
-    private var trackingArea: NSTrackingArea?
-    private var isHovered = false
-
-    var isSelected: Bool = false {
-        didSet { applyAppearance() }
-    }
-
-    init(tab: SettingsTab) {
-        self.tab = tab
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 12
-        layer?.cornerCurve = .continuous
-
-        iconChip.translatesAutoresizingMaskIntoConstraints = false
-        iconChip.wantsLayer = true
-        iconChip.layer?.cornerRadius = 8
-        iconChip.layer?.cornerCurve = .continuous
-        iconChip.layer?.borderWidth = 1
-        addSubview(iconChip)
-
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        iconView.image = NSImage(systemSymbolName: tab.iconName, accessibilityDescription: nil)
-        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        iconView.imageScaling = .scaleProportionallyDown
-        iconChip.addSubview(iconView)
-
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
-        label.stringValue = tab.title
-        addSubview(label)
-
-        NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: 46),
-
-            iconChip.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            iconChip.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconChip.widthAnchor.constraint(equalToConstant: 28),
-            iconChip.heightAnchor.constraint(equalToConstant: 28),
-
-            iconView.centerXAnchor.constraint(equalTo: iconChip.centerXAnchor),
-            iconView.centerYAnchor.constraint(equalTo: iconChip.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 16),
-            iconView.heightAnchor.constraint(equalToConstant: 16),
-
-            label.leadingAnchor.constraint(equalTo: iconChip.trailingAnchor, constant: 12),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -12),
-        ])
-
-        setAccessibilityElement(true)
-        setAccessibilityRole(.button)
-        setAccessibilityLabel(tab.title)
-        applyAppearance()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func refreshTitle() {
-        label.stringValue = tab.title
-        setAccessibilityLabel(tab.title)
-    }
-
-    private func applyAppearance() {
-        if isSelected {
-            layer?.backgroundColor = NSColor(calibratedRed: 0.22, green: 0.40, blue: 0.85, alpha: 1.0).cgColor
-            layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
-            layer?.borderWidth = 1
-            label.textColor = .white
-            iconChip.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.22).cgColor
-            iconChip.layer?.borderColor = NSColor.white.withAlphaComponent(0.30).cgColor
-            iconView.contentTintColor = .white
-        } else {
-            layer?.backgroundColor = (
-                isHovered ? NSColor.white.withAlphaComponent(0.05) : NSColor.clear
-            ).cgColor
-            layer?.borderWidth = 0
-            label.textColor = NSColor.white.withAlphaComponent(0.82)
-            iconChip.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
-            iconChip.layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
-            iconView.contentTintColor = tab.iconTint
-        }
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let existing = trackingArea {
-            removeTrackingArea(existing)
-        }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        trackingArea = area
-        addTrackingArea(area)
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isHovered = true
-        applyAppearance()
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isHovered = false
-        applyAppearance()
-    }
-
-    func refreshHoverAtCurrentMouseLocation() {
-        guard let window else {
-            if isHovered {
-                isHovered = false
-                applyAppearance()
-            }
-            return
-        }
-        let mouseLocation = convert(window.mouseLocationOutsideOfEventStream, from: nil)
-        let shouldHighlight = visibleRect.contains(mouseLocation)
-        guard isHovered != shouldHighlight else { return }
-        isHovered = shouldHighlight
-        applyAppearance()
-    }
-
-    override var acceptsFirstResponder: Bool { isEnabled }
-
-    override func accessibilityPerformPress() -> Bool {
-        guard isEnabled else { return false }
-        return sendAction(action, to: target)
-    }
-
-    override func keyDown(with event: NSEvent) {
-        if event.keyCode == kVK_Space || event.keyCode == kVK_Return {
-            _ = accessibilityPerformPress()
-        } else {
-            super.keyDown(with: event)
-        }
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        sendAction(action, to: target)
-    }
-
-}
-
-// MARK: - Action button (sidebar bottom row, mirrors TabButton's chrome)
-
-private final class ActionButton: NSControl {
-    private let iconChip = NSView()
-    private let iconView = NSImageView()
-    private let label = NSTextField(labelWithString: "")
-    private var trackingArea: NSTrackingArea?
-    private var tint: NSColor = .systemGreen
-
-    init(symbolName: String, title: String, tint: NSColor) {
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 12
-        layer?.cornerCurve = .continuous
-
-        iconChip.translatesAutoresizingMaskIntoConstraints = false
-        iconChip.wantsLayer = true
-        iconChip.layer?.cornerRadius = 8
-        iconChip.layer?.cornerCurve = .continuous
-        iconChip.layer?.borderWidth = 1
-        addSubview(iconChip)
-
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        iconView.imageScaling = .scaleProportionallyDown
-        iconChip.addSubview(iconView)
-
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
-        addSubview(label)
-
-        NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: 46),
-
-            iconChip.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            iconChip.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconChip.widthAnchor.constraint(equalToConstant: 28),
-            iconChip.heightAnchor.constraint(equalToConstant: 28),
-
-            iconView.centerXAnchor.constraint(equalTo: iconChip.centerXAnchor),
-            iconView.centerYAnchor.constraint(equalTo: iconChip.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 16),
-            iconView.heightAnchor.constraint(equalToConstant: 16),
-
-            label.leadingAnchor.constraint(equalTo: iconChip.trailingAnchor, constant: 12),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -12),
-        ])
-
-        update(symbolName: symbolName, title: title, tint: tint)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func update(symbolName: String, title: String, tint: NSColor) {
-        self.tint = tint
-        iconView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: title)
-        label.stringValue = title
-        applyAppearance()
-    }
-
-    override var isEnabled: Bool {
-        didSet { alphaValue = isEnabled ? 1.0 : 0.45 }
-    }
-
-    private func applyAppearance() {
-        layer?.backgroundColor = NSColor.clear.cgColor
-        // Match unselected TabButton's chip — the tint flows into the
-        // icon glyph and the label so the whole row reads as a single color.
-        iconChip.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        iconChip.layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        iconView.contentTintColor = tint
-        label.textColor = tint
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let existing = trackingArea {
-            removeTrackingArea(existing)
-        }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        trackingArea = area
-        addTrackingArea(area)
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        guard isEnabled else { return }
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.05).cgColor
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        layer?.backgroundColor = NSColor.clear.cgColor
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard isEnabled else { return }
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        sendAction(action, to: target)
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.05).cgColor
-    }
-
-    override var acceptsFirstResponder: Bool { true }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if isEnabled, event.charactersIgnoringModifiers == "\r" {
-            sendAction(action, to: target)
-            return true
-        }
-        return super.performKeyEquivalent(with: event)
-    }
-}
-
-// MARK: - Settings tick slider
-
-private final class SettingsTickSlider: NSControl {
-    var minValue: Double
-    var maxValue: Double
-    var stepValue: Double
-    var numberOfTickMarks: Int
-
-    override var doubleValue: Double {
-        get { value }
-        set { setValue(newValue, notify: false) }
-    }
-
-    override var isEnabled: Bool {
-        didSet {
-            if !isEnabled {
-                isDragging = false
-            }
-            needsDisplay = true
-        }
-    }
-
-    private var value: Double
-    private var isDragging = false {
-        didSet { needsDisplay = true }
-    }
-
-    private let knobSize = NSSize(width: 9, height: 18)
-    private let trackHeight: CGFloat = 3.5
-    private let tickDiameter: CGFloat = 2.5
-    private let tickGap: CGFloat = 5
-    private let accentColor = NSColor(
-        calibratedRed: 0x11 / 255.0,
-        green: 0x7D / 255.0,
-        blue: 0xFF / 255.0,
-        alpha: 1.0
-    )
-
-    init(
-        frame: NSRect = .zero,
-        value: Double,
-        minValue: Double,
-        maxValue: Double,
-        stepValue: Double,
-        numberOfTickMarks: Int,
-        target: AnyObject?,
-        action: Selector?
-    ) {
-        self.minValue = minValue
-        self.maxValue = maxValue
-        self.stepValue = stepValue
-        self.numberOfTickMarks = max(0, numberOfTickMarks)
-        self.value = Self.normalizedValue(
-            value,
-            minValue: minValue,
-            maxValue: maxValue,
-            stepValue: stepValue
-        )
-        super.init(frame: frame)
-        self.target = target
-        self.action = action
-        wantsLayer = true
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: 22)
-    }
-
-    override var acceptsFirstResponder: Bool { isEnabled }
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { isEnabled }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let enabledAlpha: CGFloat = isEnabled ? 1 : 0.35
-        let trackRect = NSRect(
-            x: 0,
-            y: floor(bounds.midY - trackHeight / 2),
-            width: bounds.width,
-            height: trackHeight
-        )
-        let travelRect = NSRect(
-            x: knobSize.width / 2,
-            y: trackRect.minY,
-            width: max(1, bounds.width - knobSize.width),
-            height: trackRect.height
-        )
-
-        let trackPath = NSBezierPath(
-            roundedRect: trackRect,
-            xRadius: trackHeight / 2,
-            yRadius: trackHeight / 2
-        )
-        NSColor.white.withAlphaComponent(0.15 * enabledAlpha).setFill()
-        trackPath.fill()
-
-        let knobCenterX = travelRect.minX + normalizedFraction * travelRect.width
-        let fillRect = NSRect(
-            x: trackRect.minX,
-            y: trackRect.minY,
-            width: max(0, knobCenterX - trackRect.minX),
-            height: trackRect.height
-        )
-        if fillRect.width > 0 {
-            let fillPath = NSBezierPath(
-                roundedRect: fillRect,
-                xRadius: trackHeight / 2,
-                yRadius: trackHeight / 2
-            )
-            accentColor.withAlphaComponent(enabledAlpha).setFill()
-            fillPath.fill()
-        }
-
-        drawKnob(centerX: knobCenterX, enabledAlpha: enabledAlpha)
-        drawTickMarks(in: travelRect, enabledAlpha: enabledAlpha)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard isEnabled else { return }
-        window?.makeFirstResponder(self)
-        isDragging = true
-        updateValue(with: event, notify: true)
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard isEnabled else { return }
-        updateValue(with: event, notify: true)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        guard isEnabled else {
-            isDragging = false
-            return
-        }
-        updateValue(with: event, notify: true)
-        isDragging = false
-    }
-
-    override func keyDown(with event: NSEvent) {
-        guard isEnabled else { return }
-        let step = stepValue > 0 ? stepValue : (maxValue - minValue) / 10
-        switch Int(event.keyCode) {
-        case kVK_LeftArrow, kVK_DownArrow:
-            setValue(value - step, notify: true)
-        case kVK_RightArrow, kVK_UpArrow:
-            setValue(value + step, notify: true)
-        default:
-            super.keyDown(with: event)
-        }
-    }
-
-    private var normalizedFraction: CGFloat {
-        guard maxValue > minValue else { return 0 }
-        return CGFloat((value - minValue) / (maxValue - minValue))
-    }
-
-    private func drawTickMarks(in trackRect: NSRect, enabledAlpha: CGFloat) {
-        guard numberOfTickMarks > 1 else { return }
-        let dotY = trackRect.minY - tickGap - tickDiameter
-        for index in 0..<numberOfTickMarks {
-            let fraction = CGFloat(index) / CGFloat(numberOfTickMarks - 1)
-            let x = trackRect.minX + fraction * trackRect.width
-            let tickRect = NSRect(
-                x: x - tickDiameter / 2,
-                y: dotY,
-                width: tickDiameter,
-                height: tickDiameter
-            )
-            NSColor.white.withAlphaComponent(0.24 * enabledAlpha).setFill()
-            NSBezierPath(ovalIn: tickRect).fill()
-        }
-    }
-
-    private func drawKnob(centerX: CGFloat, enabledAlpha: CGFloat) {
-        let knobRect = NSRect(
-            x: centerX - knobSize.width / 2,
-            y: bounds.midY - knobSize.height / 2,
-            width: knobSize.width,
-            height: knobSize.height
-        )
-        let knobPath = NSBezierPath(
-            roundedRect: knobRect,
-            xRadius: knobSize.width / 2,
-            yRadius: knobSize.width / 2
-        )
-
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.18 * enabledAlpha)
-        shadow.shadowBlurRadius = 1.5
-        shadow.shadowOffset = NSSize(width: 0, height: -0.5)
-        shadow.set()
-        NSColor(white: isDragging ? 0.88 : 0.78, alpha: enabledAlpha).setFill()
-        knobPath.fill()
-        NSGraphicsContext.restoreGraphicsState()
-
-        NSColor.white.withAlphaComponent(0.18 * enabledAlpha).setStroke()
-        knobPath.lineWidth = 0.5
-        knobPath.stroke()
-    }
-
-    private func updateValue(with event: NSEvent, notify: Bool) {
-        guard bounds.width > knobSize.width else { return }
-        let location = convert(event.locationInWindow, from: nil)
-        let trackMinX = knobSize.width / 2
-        let trackWidth = max(1, bounds.width - knobSize.width)
-        let fraction = min(max((location.x - trackMinX) / trackWidth, 0), 1)
-        let newValue = minValue + Double(fraction) * (maxValue - minValue)
-        setValue(newValue, notify: notify)
-    }
-
-    private func setValue(_ newValue: Double, notify: Bool) {
-        let normalized = Self.normalizedValue(
-            newValue,
-            minValue: minValue,
-            maxValue: maxValue,
-            stepValue: stepValue
-        )
-        value = normalized
-        needsDisplay = true
-        if notify {
-            sendAction(action, to: target)
-        }
-    }
-
-    private static func normalizedValue(
-        _ rawValue: Double,
-        minValue: Double,
-        maxValue: Double,
-        stepValue: Double
-    ) -> Double {
-        let clamped = min(max(rawValue, minValue), maxValue)
-        guard stepValue > 0 else { return clamped }
-        let steps = ((clamped - minValue) / stepValue).rounded()
-        let snapped = minValue + steps * stepValue
-        return min(max(snapped, minValue), maxValue)
-    }
-}
-
-// MARK: - Card view
 
 /// Live preview of the window-capture shadow: a small window-like card
 /// floating on a desktop-like backdrop. The shadow scales with `shadowSize`
@@ -6195,14 +5495,6 @@ private final class HistoryPanelModePreviewView: NSView {
         didSet { needsDisplay = true }
     }
 
-    private let accentBlue = NSColor(
-        calibratedRed: 0x11 / 255.0,
-        green: 0x7D / 255.0,
-        blue: 0xFF / 255.0,
-        alpha: 1.0
-    )
-    private let surfaceColor = NSColor.black
-
     init(mode: HistoryPanelSettingsMode) {
         self.mode = mode
         super.init(frame: .zero)
@@ -6221,7 +5513,7 @@ private final class HistoryPanelModePreviewView: NSView {
         ctx.saveGraphicsState()
         backdrop.addClip()
 
-        NSColor(calibratedRed: 0.14, green: 0.15, blue: 0.18, alpha: 1).setFill()
+        NSColor.controlBackgroundColor.setFill()
         backdrop.fill()
         ctx.cgContext.setAlpha(isEffectEnabled ? 1 : 0.42)
         switch mode {
@@ -6232,7 +5524,7 @@ private final class HistoryPanelModePreviewView: NSView {
         }
         ctx.restoreGraphicsState()
 
-        NSColor.white.withAlphaComponent(isEffectEnabled ? 0.08 : 0.04).setStroke()
+        NSColor.separatorColor.setStroke()
         backdrop.lineWidth = 1
         backdrop.stroke()
     }
@@ -6263,8 +5555,8 @@ private final class HistoryPanelModePreviewView: NSView {
 
         drawTopAttachedSurface(in: panelRect)
 
-        drawToolbarLine(in: panelRect, leadingInset: 36)
-        drawTileRow(in: panelRect.insetBy(dx: 34, dy: 16), count: 5)
+        drawToolbarLine(in: panelRect, leadingInset: 36, darkSurface: true)
+        drawTileRow(in: panelRect.insetBy(dx: 34, dy: 16), count: 5, darkSurface: true)
     }
 
     private func drawFloatingSurface(in rect: NSRect, radius: CGFloat, shadow: Bool) {
@@ -6279,18 +5571,18 @@ private final class HistoryPanelModePreviewView: NSView {
             panelShadow.shadowOffset = NSSize(width: 0, height: -6)
             panelShadow.set()
         }
-        surfaceColor.withAlphaComponent(0.92).setFill()
+        NSColor.windowBackgroundColor.setFill()
         path.fill()
         ctx.restoreGraphicsState()
 
-        NSColor.white.withAlphaComponent(0.14).setStroke()
+        NSColor.separatorColor.setStroke()
         path.lineWidth = 1
         path.stroke()
     }
 
     private func drawTopAttachedSurface(in rect: NSRect) {
         let path = notchPath(in: rect, flare: 14, bottomRadius: 18)
-        surfaceColor.withAlphaComponent(0.92).setFill()
+        NSColor.black.setFill()
         path.fill()
 
         NSColor.white.withAlphaComponent(0.14).setStroke()
@@ -6298,22 +5590,22 @@ private final class HistoryPanelModePreviewView: NSView {
         path.stroke()
     }
 
-    private func drawToolbarLine(in panelRect: NSRect, leadingInset: CGFloat = 18) {
+    private func drawToolbarLine(in panelRect: NSRect, leadingInset: CGFloat = 18, darkSurface: Bool = false) {
         let y = panelRect.maxY - 22
         let active = NSRect(x: panelRect.minX + leadingInset, y: y, width: 46, height: 10)
-        accentBlue.setFill()
+        NSColor.controlAccentColor.setFill()
         NSBezierPath(roundedRect: active, xRadius: 5, yRadius: 5).fill()
 
         var x = active.maxX + 10
         for _ in 0..<3 {
             let pill = NSRect(x: x, y: y, width: 34, height: 10)
-            NSColor.white.withAlphaComponent(0.16).setFill()
+            (darkSurface ? NSColor.white.withAlphaComponent(0.16) : .tertiarySystemFill).setFill()
             NSBezierPath(roundedRect: pill, xRadius: 5, yRadius: 5).fill()
             x += 44
         }
     }
 
-    private func drawTileRow(in rect: NSRect, count: Int) {
+    private func drawTileRow(in rect: NSRect, count: Int, darkSurface: Bool = false) {
         let contentRect = NSRect(
             x: rect.minX,
             y: rect.minY,
@@ -6329,7 +5621,7 @@ private final class HistoryPanelModePreviewView: NSView {
                 width: tileWidth,
                 height: contentRect.height
             )
-            NSColor.white.withAlphaComponent(0.10).setFill()
+            (darkSurface ? NSColor.white.withAlphaComponent(0.10) : .quaternarySystemFill).setFill()
             NSBezierPath(roundedRect: tileRect, xRadius: 8, yRadius: 8).fill()
 
             let bar = NSRect(
@@ -6338,7 +5630,8 @@ private final class HistoryPanelModePreviewView: NSView {
                 width: max(18, tileRect.width - 16),
                 height: 8
             )
-            (index == 0 ? accentBlue : NSColor.white.withAlphaComponent(0.24)).setFill()
+            let fill = darkSurface ? NSColor.white.withAlphaComponent(0.24) : .tertiarySystemFill
+            (index == 0 ? NSColor.controlAccentColor : fill).setFill()
             NSBezierPath(roundedRect: bar, xRadius: 4, yRadius: 4).fill()
         }
     }
@@ -6399,13 +5692,6 @@ private final class HistoryPanelModeOptionView: NSControl {
         didSet { applyAppearance() }
     }
 
-    private let accentBlue = NSColor(
-        calibratedRed: 0x11 / 255.0,
-        green: 0x7D / 255.0,
-        blue: 0xFF / 255.0,
-        alpha: 1.0
-    )
-
     init(mode: HistoryPanelSettingsMode, title: String, subtitle: String) {
         self.mode = mode
         self.title = NSTextField(labelWithString: title)
@@ -6464,6 +5750,9 @@ private final class HistoryPanelModeOptionView: NSControl {
         ])
 
         setContentCompressionResistancePriority(.required, for: .vertical)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.radioButton)
+        setAccessibilityTitleUIElement(title)
         applyAppearance()
     }
 
@@ -6504,6 +5793,15 @@ private final class HistoryPanelModeOptionView: NSControl {
 
     override var acceptsFirstResponder: Bool { isEnabled }
 
+    override func accessibilityValue() -> Any? {
+        isSelected ? 1 : 0
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard isEnabled else { return false }
+        return sendAction(action, to: target)
+    }
+
     override func keyDown(with event: NSEvent) {
         guard isEnabled else { return }
         let keyCode = Int(event.keyCode)
@@ -6516,43 +5814,49 @@ private final class HistoryPanelModeOptionView: NSControl {
 
     private func applyAppearance() {
         let enabledAlpha: CGFloat = isEnabled ? 1 : 0.42
-        let backgroundAlpha: CGFloat
-        if isSelected {
-            backgroundAlpha = 0.052
-        } else if isHovered {
-            backgroundAlpha = 0.044
-        } else {
-            backgroundAlpha = 0.018
-        }
-
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(backgroundAlpha * enabledAlpha).cgColor
-        layer?.borderColor = (isSelected ? accentBlue : NSColor.white.withAlphaComponent(0.09 * enabledAlpha)).cgColor
+        let accent = NSColor.controlAccentColor
+        let fill: NSColor = isSelected || isHovered ? .quaternarySystemFill : .clear
+        let border: NSColor = isSelected ? accent : .separatorColor
+        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(fill, for: effectiveAppearance)
+        layer?.borderColor = AdaptiveChrome.resolvedCGColor(border, for: effectiveAppearance)
         layer?.borderWidth = isSelected ? 2 : 1
 
-        title.textColor = NSColor.white.withAlphaComponent(isEnabled ? 0.94 : 0.4)
-        subtitle.textColor = NSColor.white.withAlphaComponent(isEnabled ? 0.58 : 0.35)
+        title.textColor = isEnabled ? .labelColor : .tertiaryLabelColor
+        subtitle.textColor = isEnabled ? .secondaryLabelColor : .tertiaryLabelColor
         checkView.isHidden = !isSelected
-        checkView.contentTintColor = accentBlue.withAlphaComponent(enabledAlpha)
+        checkView.contentTintColor = accent.withAlphaComponent(enabledAlpha)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyAppearance()
     }
 }
 
-private final class CardView: NSView {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        commonInit()
-    }
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        commonInit()
-    }
-    private func commonInit() {
+class SettingsGroupView: NSBox {
+    let content = NSView()
+
+    init() {
+        super.init(frame: .zero)
+        boxType = .custom
+        titlePosition = .noTitle
+        borderWidth = 0
+        fillColor = .quaternarySystemFill
+        cornerRadius = 12
+        contentViewMargins = .zero
+        contentView = content
+        content.translatesAutoresizingMaskIntoConstraints = false
         translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = true
-        layer?.cornerRadius = 12
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.04).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        layer?.borderWidth = 1
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: trailingAnchor),
+            content.topAnchor.constraint(equalTo: topAnchor),
+            content.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 
@@ -6597,7 +5901,12 @@ final class StatusBadge: NSView {
         let color: NSColor = granted ? .systemGreen : .systemOrange
         label.stringValue = granted ? L10n.permissionGranted : L10n.permissionNotGranted
         label.textColor = color
-        layer?.backgroundColor = color.withAlphaComponent(0.18).cgColor
+        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(color.withAlphaComponent(0.14), for: effectiveAppearance)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        refreshTitle()
     }
 }
 
@@ -6642,7 +5951,7 @@ private final class HoverButton: NSButton {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
+        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(.quaternarySystemFill, for: effectiveAppearance)
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -6650,8 +5959,8 @@ private final class HoverButton: NSButton {
     }
 
     override func mouseDown(with event: NSEvent) {
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
+        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(.tertiarySystemFill, for: effectiveAppearance)
         super.mouseDown(with: event)
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
+        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(.quaternarySystemFill, for: effectiveAppearance)
     }
 }

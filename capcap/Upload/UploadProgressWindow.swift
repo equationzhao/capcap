@@ -4,7 +4,7 @@ import AppKit
 final class UploadProgressWindow: NSPanel {
     private let titleLabel = NSTextField(labelWithString: "")
     private let percentLabel = NSTextField(labelWithString: "0%")
-    private let progressBar = ProgressBarView()
+    private let progressBar = NSProgressIndicator()
 
     init(provider: String) {
         let size = NSSize(width: 240, height: 56)
@@ -20,8 +20,9 @@ final class UploadProgressWindow: NSPanel {
         hasShadow = true
         ignoresMouseEvents = true
 
-        let host = ChipBackgroundView(frame: NSRect(origin: .zero, size: size))
-        contentView = host
+        let surface = FloatingGlassView(frame: NSRect(origin: .zero, size: size), cornerRadius: 18)
+        contentView = surface
+        let host = surface.content
 
         let title = "\(L10n.uploadingTitle) · \(provider)"
         titleLabel.stringValue = title
@@ -36,6 +37,11 @@ final class UploadProgressWindow: NSPanel {
         percentLabel.translatesAutoresizingMaskIntoConstraints = false
         host.addSubview(percentLabel)
 
+        progressBar.style = .bar
+        progressBar.isIndeterminate = false
+        progressBar.maxValue = 1
+        progressBar.controlSize = .small
+        progressBar.setAccessibilityLabel(L10n.uploadingTitle)
         progressBar.translatesAutoresizingMaskIntoConstraints = false
         host.addSubview(progressBar)
 
@@ -51,7 +57,6 @@ final class UploadProgressWindow: NSPanel {
             progressBar.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 12),
             progressBar.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -12),
             progressBar.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -10),
-            progressBar.heightAnchor.constraint(equalToConstant: 4),
         ])
     }
 
@@ -69,53 +74,23 @@ final class UploadProgressWindow: NSPanel {
         alphaValue = 0
         orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.18
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.18
             self.animator().alphaValue = 1
         }
     }
 
     func setProgress(_ pct: Double) {
         let clamped = min(max(pct, 0), 1)
-        progressBar.progress = CGFloat(clamped)
+        progressBar.doubleValue = clamped
         percentLabel.stringValue = "\(Int(clamped * 100))%"
     }
 
     func dismiss() {
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.18
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.18
             self.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
             self?.orderOut(nil)
         })
-    }
-}
-
-private final class ChipBackgroundView: NSView {
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 10, yRadius: 10)
-        AdaptiveChrome.floatingBackground.setFill()
-        path.fill()
-        AdaptiveChrome.border.setStroke()
-        path.lineWidth = 0.5
-        path.stroke()
-    }
-}
-
-private final class ProgressBarView: NSView {
-    var progress: CGFloat = 0 {
-        didSet { needsDisplay = true }
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let trackPath = NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2)
-        AdaptiveChrome.subtleFill.setFill()
-        trackPath.fill()
-
-        let fillWidth = bounds.width * progress
-        guard fillWidth > 0 else { return }
-        let fillRect = NSRect(x: 0, y: 0, width: fillWidth, height: bounds.height)
-        let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: fillRect.height / 2, yRadius: fillRect.height / 2)
-        NSColor(calibratedRed: 0.36, green: 0.78, blue: 0.50, alpha: 1.0).setFill()
-        fillPath.fill()
     }
 }

@@ -6,7 +6,7 @@ private enum MagnifierLensPanelLayout {
     static let infoRowHeight: CGFloat = 18
     static let infoGroupSpacing: CGFloat = 4
     static let infoVerticalInset: CGFloat = 8
-    static let cornerRadius: CGFloat = 8
+    static let cornerRadius: CGFloat = 14
 }
 
 /// Cursor-adjacent magnifier color picker shown on the overlay's idle state.
@@ -69,7 +69,11 @@ final class MagnifierLensPanelWindow: NSPanel {
         sharingType = .none
         animationBehavior = .none
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        contentView = lensView
+        contentView = FloatingGlassView(
+            frame: lensView.frame,
+            content: lensView,
+            cornerRadius: MagnifierLensPanelLayout.cornerRadius
+        )
     }
 
     deinit {
@@ -250,8 +254,7 @@ enum MagnifierLensPanelSampler {
     /// the view that needs to draw so this works regardless of AppKit quirks.
     static func backgroundColor(forAppearance appearance: NSAppearance) -> NSColor {
         if Defaults.magnifierLensPanelFollowSystemAppearance {
-            let isDark = appearance.bestMatch(from: [.darkAqua, .vibrantDark]) == .darkAqua
-            return isDark ? darkBackgroundColor() : lightBackgroundColor()
+            return AdaptiveChrome.isDark(appearance) ? darkBackgroundColor() : lightBackgroundColor()
         }
         return darkBackgroundColor()
     }
@@ -353,6 +356,8 @@ final class MagnifierLensPanelView: NSView {
         NSGraphicsContext.current?.saveGraphicsState()
         bgPath.addClip()
         drawMagnifiedArea(in: magnifiedRect)
+        NSColor.separatorColor.setFill()
+        NSRect(x: 0, y: magnifiedRect.minY, width: panelWidth, height: 1 / (window?.backingScaleFactor ?? 2)).fill()
         drawInfo()
         NSGraphicsContext.current?.restoreGraphicsState()
     }
@@ -434,7 +439,7 @@ final class MagnifierLensPanelView: NSView {
         ]
         let tipAttrs: [NSAttributedString.Key: Any] = [
             .font: Self.tipFont,
-            .foregroundColor: NSColor.labelColor.withAlphaComponent(0.7)
+            .foregroundColor: NSColor.secondaryLabelColor
         ]
 
         // Compute the row index (from the bottom) for each row that exists.

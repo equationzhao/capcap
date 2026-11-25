@@ -334,6 +334,7 @@ final class ImageMergeWindowController: NSWindowController, NSWindowDelegate {
         header.addArrangedSubview(valueLabel)
         header.widthAnchor.constraint(equalToConstant: 268).isActive = true
 
+        slider.accessibleTitle = title
         slider.widthAnchor.constraint(equalToConstant: 268).isActive = true
         stack.addArrangedSubview(header)
         stack.addArrangedSubview(slider)

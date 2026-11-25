@@ -69,6 +69,7 @@
 "pinToolbarDrag" = "Faire glisser l'image épinglée";
 "pinToolbarEdit" = "Modifier l'image épinglée";
 "pinToolbarEditText" = "Modifier le texte";
+"pinToolbarCloseText" = "Fermer";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "Modifier l'image sélectionnée";
@@ -772,3 +773,7 @@
 "historyFilePreviewRetry" = "Vérifier à nouveau";
 
 "historyFilePreviewUnavailable" = "Aperçu indisponible pour ce fichier";
+"editorStrokeWidth" = "Épaisseur du trait";
+"editorFontSize" = "Taille de police";
+"ocrPinPanel" = "Épingler le panneau";
+"ocrUnpinPanel" = "Désépingler le panneau";

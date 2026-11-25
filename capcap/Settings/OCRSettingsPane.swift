@@ -2,7 +2,7 @@ import AppKit
 
 /// A single active provider, with independent saved configurations. Changes
 /// apply to the next recognition request; in-flight work keeps its snapshot.
-final class OCRSettingsPane: NSView, NSTextFieldDelegate {
+final class OCRSettingsPane: SettingsGroupView, NSTextFieldDelegate {
     private var kind = Defaults.ocrProviderKind
     private let providerPopup = NSPopUpButton()
     private let descriptionLabel = NSTextField(wrappingLabelWithString: "")
@@ -17,9 +17,8 @@ final class OCRSettingsPane: NSView, NSTextFieldDelegate {
     private var labels: [String: NSTextField] = [:]
     private var rows: [String: NSView] = [:]
 
-    init() {
-        super.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
+    override init() {
+        super.init()
         buildUI()
         loadConfig()
         refreshLocalization()
@@ -36,12 +35,12 @@ final class OCRSettingsPane: NSView, NSTextFieldDelegate {
         stack.alignment = .leading
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
+        content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 14),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -22),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -22)
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 14),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16)
         ])
 
         providerPopup.target = self
@@ -80,6 +79,7 @@ final class OCRSettingsPane: NSView, NSTextFieldDelegate {
         let label = NSTextField(labelWithString: "")
         label.font = .systemFont(ofSize: 12, weight: .medium)
         labels[key] = label
+        field.setAccessibilityTitleUIElement(label)
         let row = NSStackView(views: [label, field])
         row.orientation = .vertical
         row.alignment = .leading

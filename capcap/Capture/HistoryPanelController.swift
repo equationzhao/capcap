@@ -7,7 +7,8 @@ import UniformTypeIdentifiers
 
 private enum HistoryPanelLayout {
     static let headerTopInset: CGFloat = 12
-    static let headerHeight: CGFloat = 34
+    static let headerHeight: CGFloat = 36
+    static let headerControlInset: CGFloat = 8
     static let verticalGap: CGFloat = 12
     static let searchFieldWidth: CGFloat = 252
     static let searchTransitionDuration: TimeInterval = 0.26
@@ -148,7 +149,7 @@ final class HistoryPanelController {
         panel.hidesOnDeactivate = false
         panel.acceptsMouseMovedEvents = true
 
-        let chrome = HistoryPanelChromeView()
+        let chrome = AdaptiveChromeSurfaceView(style: .panel, cornerRadius: 24)
         chrome.frame = NSRect(origin: .zero, size: frame.size)
         chrome.autoresizingMask = [.width, .height]
 
@@ -230,22 +231,6 @@ final class HistoryPanelController {
 private final class HistoryFloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
-}
-
-private final class HistoryPanelChromeView: NSView {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 18
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor(calibratedWhite: 0.06, alpha: 0.86).cgColor
-        layer?.borderColor = accentGreen.withAlphaComponent(0.34).cgColor
-        layer?.borderWidth = 1
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
 }
 
 private final class HistoryNotchWindowController: NSWindowController {
@@ -341,7 +326,7 @@ private final class HistoryNotchWindowController: NSWindowController {
         window?.ignoresMouseEvents = false
         window?.orderFrontRegardless()
         window?.makeKey()
-        rootView.setExpanded(true, animated: true)
+        rootView.setExpanded(true, animated: !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     }
 
     private func collapse() {
@@ -349,7 +334,13 @@ private final class HistoryNotchWindowController: NSWindowController {
         cancelExpand()
         holdsOpenUntilMouseEntersHoverRegion = false
         commandOpenedMouseHasEnteredHoverRegion = false
-        rootView.setExpanded(false, animated: true)
+        let animated = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        rootView.setExpanded(false, animated: animated)
+        guard animated else {
+            isCollapsing = false
+            window?.ignoresMouseEvents = true
+            return
+        }
         isCollapsing = true
         DispatchQueue.main.asyncAfter(deadline: .now() + collapseAnimationDuration) { [weak self] in
             guard let self, self.isCollapsing else { return }
@@ -672,6 +663,8 @@ private final class HistoryNotchRootView: NSView {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
 
+        // This surface follows the black hardware notch and its continuous silhouette.
+        shellView.appearance = NSAppearance(named: .darkAqua)
         shellView.frame = bounds
         shellView.autoresizingMask = [.width, .height]
         addSubview(shellView)
@@ -1407,15 +1400,22 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     func updateNotchGeometry(_ geometry: HistoryNotchGeometry) {
         guard presentation == .notch else { return }
         filterViewportWidthConstraint?.constant = geometry.filterViewportWidth(
-            headerInset: presentation.headerInset
+            headerInset: presentation.headerInset + HistoryPanelLayout.headerControlInset
         )
         needsLayout = true
     }
 
     private func setupUI() {
-        let header = NSView()
-        header.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(header)
+        let headerSurface = FloatingGlassView(
+            cornerRadius: HistoryPanelLayout.headerHeight / 2,
+            interactive: true,
+            blendingMode: .withinWindow
+        )
+        headerSurface.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(headerSurface)
+        let header = headerSurface.content
+        header.wantsLayer = true
+        header.layer?.masksToBounds = true
 
         filterScrollView.translatesAutoresizingMaskIntoConstraints = false
         filterScrollView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
@@ -1470,9 +1470,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
             self?.setSearchInputActive(isEditing)
         }
         header.addSubview(searchField)
-        header.wantsLayer = true
-        header.layer?.masksToBounds = true
-
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.drawsBackground = false
         scrollView.hasHorizontalScroller = false
@@ -1511,7 +1508,7 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         addSubview(shortcutGuideView)
 
         emptyLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        emptyLabel.textColor = NSColor.white.withAlphaComponent(0.48)
+        emptyLabel.textColor = .secondaryLabelColor
         emptyLabel.alignment = .center
         emptyLabel.isHidden = true
         emptyLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -1521,7 +1518,10 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         let headerInset = presentation.headerInset
         let deleteWidth = deleteButton.widthAnchor.constraint(equalToConstant: HistoryPanelDeleteButton.collapsedWidth)
         deleteButtonWidthConstraint = deleteWidth
-        let actionButtonsTrailing = actionButtonsContainer.trailingAnchor.constraint(equalTo: header.trailingAnchor)
+        let actionButtonsTrailing = actionButtonsContainer.trailingAnchor.constraint(
+            equalTo: header.trailingAnchor,
+            constant: -HistoryPanelLayout.headerControlInset
+        )
         let searchFieldTrailing = searchField.trailingAnchor.constraint(
             equalTo: header.trailingAnchor,
             constant: HistoryPanelLayout.searchHiddenOffset
@@ -1532,12 +1532,12 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         actionButtonsTrailingConstraint = actionButtonsTrailing
         searchFieldTrailingConstraint = searchFieldTrailing
         NSLayoutConstraint.activate([
-            header.topAnchor.constraint(equalTo: topAnchor, constant: HistoryPanelLayout.headerTopInset),
-            header.leadingAnchor.constraint(equalTo: leadingAnchor, constant: headerInset),
-            header.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -headerInset),
-            header.heightAnchor.constraint(equalToConstant: HistoryPanelLayout.headerHeight),
+            headerSurface.topAnchor.constraint(equalTo: topAnchor, constant: HistoryPanelLayout.headerTopInset),
+            headerSurface.leadingAnchor.constraint(equalTo: leadingAnchor, constant: headerInset),
+            headerSurface.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -headerInset),
+            headerSurface.heightAnchor.constraint(equalToConstant: HistoryPanelLayout.headerHeight),
 
-            filterScrollView.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            filterScrollView.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: HistoryPanelLayout.headerControlInset),
             filterScrollView.centerYAnchor.constraint(equalTo: header.centerYAnchor),
             filterScrollView.heightAnchor.constraint(equalToConstant: 28),
             filterScrollView.trailingAnchor.constraint(
@@ -1560,12 +1560,12 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
             searchField.widthAnchor.constraint(equalToConstant: HistoryPanelLayout.searchFieldWidth),
             searchField.heightAnchor.constraint(equalToConstant: 28),
 
-            scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: HistoryPanelLayout.verticalGap),
+            scrollView.topAnchor.constraint(equalTo: headerSurface.bottomAnchor, constant: HistoryPanelLayout.verticalGap),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: inset),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -inset),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -presentation.contentBottomInset),
 
-            shortcutGuideView.topAnchor.constraint(equalTo: header.bottomAnchor),
+            shortcutGuideView.topAnchor.constraint(equalTo: headerSurface.bottomAnchor),
             shortcutGuideView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             shortcutGuideView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             shortcutGuideView.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -1604,7 +1604,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         finderButton.updateAccessibilityLabel(L10n.historyShowInFinder)
         updateLockButtonPresentation()
         settingsButton.updateAccessibilityLabel(L10n.settings)
-        searchField.clearAccessibilityLabel = L10n.historyPanelClearSearch
         updateSearchPlaceholder()
         updateEmptyLabel()
     }
@@ -1927,16 +1926,16 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         let applyFinalState = {
             self.actionButtonsTrailingConstraint?.constant = searching
                 ? HistoryPanelLayout.actionsHiddenOffset
-                : 0
+                : -HistoryPanelLayout.headerControlInset
             self.searchFieldTrailingConstraint?.constant = searching
-                ? 0
+                ? -HistoryPanelLayout.headerControlInset
                 : HistoryPanelLayout.searchHiddenOffset
             self.actionButtonsContainer.alphaValue = searching ? 0 : 1
             self.searchField.alphaValue = searching ? 1 : 0
             self.layoutSubtreeIfNeeded()
         }
 
-        guard animated else {
+        guard animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             applyFinalState()
             actionButtonsContainer.isHidden = searching
             searchField.isHidden = !searching
@@ -1949,9 +1948,9 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             self.actionButtonsTrailingConstraint?.constant = searching
                 ? HistoryPanelLayout.actionsHiddenOffset
-                : 0
+                : -HistoryPanelLayout.headerControlInset
             self.searchFieldTrailingConstraint?.constant = searching
-                ? 0
+                ? -HistoryPanelLayout.headerControlInset
                 : HistoryPanelLayout.searchHiddenOffset
             self.actionButtonsContainer.animator().alphaValue = searching ? 0 : 1
             self.searchField.animator().alphaValue = searching ? 1 : 0
@@ -2334,9 +2333,7 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         let title = hasSelection
             ? L10n.historyPanelDeleteSelected(selectedEntryIDs.count)
             : L10n.historyPanelDeleteAll
-        deleteButton.title = title
-        deleteButton.toolTip = title
-        deleteButton.setAccessibilityLabel(title)
+        deleteButton.confirmationTitle = title
         if isConfirmingDelete {
             deleteButtonWidthConstraint?.constant = deleteButton.expandedWidth
             layoutSubtreeIfNeeded()
@@ -2348,16 +2345,14 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         isConfirmingDelete = confirming
         let width = confirming ? deleteButton.expandedWidth : HistoryPanelDeleteButton.collapsedWidth
 
-        guard animated else {
+        deleteButton.setConfirming(confirming)
+        guard animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             deleteButtonWidthConstraint?.constant = width
-            deleteButton.setConfirming(confirming, animated: false)
             layoutSubtreeIfNeeded()
             return
         }
 
         layoutSubtreeIfNeeded()
-        deleteButton.setConfirming(confirming, animated: true)
-
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.22
             context.allowsImplicitAnimation = true
@@ -3369,14 +3364,21 @@ private final class HistoryPanelShortcutGroupView: NSView {
         wantsLayer = true
         layer?.cornerRadius = 8
         layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.065).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        layer?.borderWidth = 1
+        updateBackground()
         rows.forEach(addSubview)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateBackground()
+    }
+
+    private func updateBackground() {
+        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(.quaternarySystemFill, for: effectiveAppearance)
     }
 
     override func layout() {
@@ -3397,23 +3399,17 @@ private final class HistoryPanelShortcutGroupView: NSView {
 
 private final class HistoryPanelShortcutRowView: NSView {
     private let shortcutLabel = HistoryPanelCenteredTextView()
-    private let shortcutCapsule = NSView()
+    private let shortcutCapsule = AdaptiveChromeSurfaceView(style: .card, cornerRadius: 5)
     private let descriptionLabel = HistoryPanelCenteredTextView()
 
     init(shortcut: String, description: String) {
         super.init(frame: .zero)
 
-        shortcutCapsule.wantsLayer = true
-        shortcutCapsule.layer?.cornerRadius = 5
-        shortcutCapsule.layer?.cornerCurve = .continuous
-        shortcutCapsule.layer?.backgroundColor = accentGreen.withAlphaComponent(0.14).cgColor
-        shortcutCapsule.layer?.borderColor = accentGreen.withAlphaComponent(0.38).cgColor
-        shortcutCapsule.layer?.borderWidth = 1
         addSubview(shortcutCapsule)
 
         shortcutLabel.stringValue = shortcut
         shortcutLabel.font = NSFont.monospacedSystemFont(ofSize: 9.5, weight: .semibold)
-        shortcutLabel.textColor = accentGreen.withAlphaComponent(0.94)
+        shortcutLabel.textColor = .labelColor
         shortcutLabel.alignment = .center
         shortcutLabel.horizontalInset = 0
         shortcutLabel.verticalInset = 0
@@ -3423,7 +3419,7 @@ private final class HistoryPanelShortcutRowView: NSView {
 
         descriptionLabel.stringValue = description
         descriptionLabel.font = NSFont.systemFont(ofSize: 10.5, weight: .medium)
-        descriptionLabel.textColor = NSColor.white.withAlphaComponent(0.78)
+        descriptionLabel.textColor = .labelColor
         descriptionLabel.alignment = .left
         descriptionLabel.horizontalInset = 0
         descriptionLabel.verticalInset = 0
@@ -3518,140 +3514,145 @@ private final class HistorySelectionBadgeView: NSView {
     }
 }
 
-private final class HistoryPanelDeleteButton: NSControl {
+private final class HistoryPanelDeleteButton: NSButton {
     static let collapsedWidth: CGFloat = 28
-    static let minimumExpandedWidth: CGFloat = 96
-    private static let iconSize: CGFloat = 14
-    private static let contentSpacing: CGFloat = 8
-    private static let horizontalPadding: CGFloat = 12
-    private static let collapsedBackgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-
-    private let iconView = NSImageView()
-    private let label = HistoryPanelCenteredTextView()
     private var isConfirming = false
 
-    var title: String {
-        get { label.stringValue }
-        set {
-            label.stringValue = newValue
-            needsLayout = true
+    var confirmationTitle = "" {
+        didSet {
+            toolTip = confirmationTitle
+            setAccessibilityLabel(confirmationTitle)
+            if isConfirming { title = confirmationTitle }
         }
     }
 
     var expandedWidth: CGFloat {
-        let textWidth = ceil((label.stringValue as NSString).size(withAttributes: [.font: label.font]).width)
-        return max(
-            Self.minimumExpandedWidth,
-            Self.iconSize + Self.contentSpacing + textWidth + Self.horizontalPadding * 2
-        )
-    }
-
-    override var isEnabled: Bool {
-        didSet {
-            alphaValue = isEnabled ? 1 : 0.35
-        }
-    }
-
-    override var toolTip: String? {
-        didSet {
-            iconView.toolTip = toolTip
-            label.toolTip = toolTip
-        }
+        let font = font ?? .systemFont(ofSize: NSFont.systemFontSize(for: .small))
+        let textWidth = ceil(confirmationTitle.size(withAttributes: [.font: font]).width)
+        return max(96, textWidth + 48)
     }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 14
-        layer?.cornerCurve = .continuous
-
-        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        iconView.image = NSImage(systemSymbolName: "trash", accessibilityDescription: L10n.historyClear)?
-            .withSymbolConfiguration(config)
-        iconView.contentTintColor = NSColor.systemRed.withAlphaComponent(0.88)
-        iconView.imageScaling = .scaleProportionallyDown
-        addSubview(iconView)
-
-        label.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        label.textColor = .white
-        label.alignment = .left
-        label.horizontalInset = 0
-        label.alphaValue = 0
-        addSubview(label)
-
-        setConfirming(false, animated: false)
+        controlSize = .small
+        bezelStyle = .accessoryBarAction
+        image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
+        imageScaling = .scaleProportionallyDown
+        setButtonType(.momentaryPushIn)
+        setConfirming(false)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func layout() {
-        super.layout()
-        let textWidth = isConfirming
-            ? min(
-                max(0, bounds.width - Self.iconSize - Self.contentSpacing - Self.horizontalPadding * 2),
-                ceil((label.stringValue as NSString).size(withAttributes: [.font: label.font]).width)
-            )
-            : 0
-        let groupWidth = isConfirming ? Self.iconSize + Self.contentSpacing + textWidth : Self.iconSize
-        let groupStartX = max(0, bounds.midX - groupWidth / 2)
-
-        iconView.frame = NSRect(
-            x: groupStartX,
-            y: bounds.midY - Self.iconSize / 2,
-            width: Self.iconSize,
-            height: Self.iconSize
-        )
-        label.frame = NSRect(
-            x: iconView.frame.maxX + Self.contentSpacing,
-            y: 0,
-            width: textWidth,
-            height: bounds.height
-        )
-    }
-
-    func setConfirming(_ confirming: Bool, animated: Bool) {
-        layoutSubtreeIfNeeded()
+    func setConfirming(_ confirming: Bool) {
         isConfirming = confirming
-
-        let backgroundColor = confirming
-            ? NSColor.systemRed.withAlphaComponent(0.86).cgColor
-            : Self.collapsedBackgroundColor
-        layer?.backgroundColor = backgroundColor
-        iconView.contentTintColor = confirming
-            ? .white
-            : NSColor.systemRed.withAlphaComponent(0.88)
-
-        guard animated else {
-            label.alphaValue = confirming ? 1 : 0
-            needsLayout = true
-            layoutSubtreeIfNeeded()
-            return
-        }
-
-        needsLayout = true
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.18
-            context.allowsImplicitAnimation = true
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            label.animator().alphaValue = confirming ? 1 : 0
-            animator().layoutSubtreeIfNeeded()
-        }
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard isEnabled else { return }
-        sendAction(action, to: target)
+        isBordered = confirming
+        title = confirming ? confirmationTitle : ""
+        imagePosition = confirming ? .imageLeading : .imageOnly
+        contentTintColor = .systemRed
+        hasDestructiveAction = confirming
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
-private final class HistoryPanelSearchField: NSView, NSTextFieldDelegate {
+private final class HistoryPanelActionButton: NSButton {
+    private static let buttonSize: CGFloat = 28
+
+    var isSelected = false {
+        didSet {
+            state = isSelected ? .on : .off
+            contentTintColor = isSelected ? .controlAccentColor : .labelColor
+        }
+    }
+
+    init(symbolName: String, accessibilityLabel: String) {
+        super.init(frame: .zero)
+        isBordered = false
+        bezelStyle = .accessoryBarAction
+        imagePosition = .imageOnly
+        imageScaling = .scaleProportionallyDown
+        contentTintColor = .labelColor
+        updateAccessibilityLabel(accessibilityLabel)
+        updateSymbol(symbolName)
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: Self.buttonSize),
+            heightAnchor.constraint(equalToConstant: Self.buttonSize),
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func updateAccessibilityLabel(_ label: String) {
+        toolTip = label
+        setAccessibilityLabel(label)
+    }
+
+    func updateSymbol(_ symbolName: String) {
+        image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+private final class HistoryPanelFilterButton: NSButton {
+    let filter: HistoryPanelFilter
+
+    override var title: String {
+        didSet {
+            toolTip = title
+            setAccessibilityLabel(title)
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    var isSelected = false {
+        didSet {
+            state = isSelected ? .on : .off
+            contentTintColor = isSelected ? .controlAccentColor : .secondaryLabelColor
+        }
+    }
+
+    init(filter: HistoryPanelFilter) {
+        self.filter = filter
+        super.init(frame: .zero)
+        bezelStyle = .accessoryBarAction
+        controlSize = .small
+        setButtonType(.pushOnPushOff)
+        if let symbolName = filter.symbolName {
+            image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+                .withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
+            imagePosition = .imageOnly
+            imageScaling = .scaleProportionallyDown
+        }
+        contentTintColor = .secondaryLabelColor
+        title = filter.title
+        heightAnchor.constraint(equalToConstant: 28).isActive = true
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: filter.symbolName == nil ? max(48, super.intrinsicContentSize.width) : 36, height: 28)
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+private final class HistoryPanelSearchField: NSView, NSSearchFieldDelegate {
     var onTextChanged: ((String) -> Void)?
     var onClear: (() -> Void)?
     var onEditingStateChanged: ((Bool) -> Void)?
+
+    private let textField = NSSearchField()
 
     var text: String {
         get { textField.stringValue }
@@ -3659,51 +3660,24 @@ private final class HistoryPanelSearchField: NSView, NSTextFieldDelegate {
     }
 
     var placeholder = "" {
-        didSet { updatePlaceholder() }
+        didSet {
+            textField.placeholderString = placeholder
+            textField.setAccessibilityLabel(placeholder)
+        }
     }
-
-    var clearAccessibilityLabel = "" {
-        didSet { clearButton.updateAccessibilityLabel(clearAccessibilityLabel) }
-    }
-
-    private let textField = NSTextField(string: "")
-    private let clearButton = HistoryPanelSearchClearButton()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 14
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.11).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        layer?.borderWidth = 1
-
         textField.delegate = self
-        textField.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        textField.textColor = NSColor.white.withAlphaComponent(0.92)
-        textField.drawsBackground = false
-        textField.isBordered = false
-        textField.isBezeled = false
-        textField.focusRingType = .none
-        textField.usesSingleLineMode = true
-        textField.lineBreakMode = .byTruncatingTail
+        textField.target = self
+        textField.action = #selector(searchSubmitted)
+        textField.sendsWholeSearchString = true
         textField.translatesAutoresizingMaskIntoConstraints = false
         addSubview(textField)
-
-        clearButton.target = self
-        clearButton.action = #selector(clearClicked)
-        clearButton.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(clearButton)
-
         NSLayoutConstraint.activate([
-            textField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            textField.trailingAnchor.constraint(equalTo: clearButton.leadingAnchor, constant: -6),
+            textField.leadingAnchor.constraint(equalTo: leadingAnchor),
+            textField.trailingAnchor.constraint(equalTo: trailingAnchor),
             textField.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            clearButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-            clearButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            clearButton.widthAnchor.constraint(equalToConstant: 20),
-            clearButton.heightAnchor.constraint(equalToConstant: 20),
         ])
     }
 
@@ -3716,275 +3690,26 @@ private final class HistoryPanelSearchField: NSView, NSTextFieldDelegate {
     }
 
     func resignFocus() {
-        guard let window,
-              window.firstResponder === textField.currentEditor() else { return }
+        guard let window, window.firstResponder === textField.currentEditor() else { return }
         window.makeFirstResponder(nil)
     }
 
-    func controlTextDidBeginEditing(_ obj: Notification) {
+    func controlTextDidBeginEditing(_ notification: Notification) {
         onEditingStateChanged?(true)
     }
 
-    func controlTextDidChange(_ obj: Notification) {
-        onTextChanged?(textField.stringValue)
+    func controlTextDidChange(_ notification: Notification) {
+        onTextChanged?(text)
     }
 
-    func controlTextDidEndEditing(_ obj: Notification) {
+    func controlTextDidEndEditing(_ notification: Notification) {
         onEditingStateChanged?(false)
     }
 
-    @objc private func clearClicked() {
-        onClear?()
-    }
-
-    private func updatePlaceholder() {
-        textField.placeholderAttributedString = NSAttributedString(
-            string: placeholder,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-                .foregroundColor: NSColor.white.withAlphaComponent(0.42),
-            ]
-        )
-        textField.setAccessibilityLabel(placeholder)
-    }
-}
-
-private final class HistoryPanelSearchClearButton: NSControl {
-    private let iconView = NSImageView()
-    private var trackingArea: NSTrackingArea?
-    private var isHovering = false {
-        didSet { applyAppearance() }
-    }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 10
-        layer?.cornerCurve = .continuous
-
-        let config = NSImage.SymbolConfiguration(pointSize: 8, weight: .bold)
-        iconView.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)?
-            .withSymbolConfiguration(config)
-        iconView.imageScaling = .scaleProportionallyDown
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(iconView)
-
-        NSLayoutConstraint.activate([
-            iconView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 9),
-            iconView.heightAnchor.constraint(equalToConstant: 9),
-        ])
-        applyAppearance()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func updateAccessibilityLabel(_ label: String) {
-        toolTip = label
-        iconView.toolTip = label
-        setAccessibilityLabel(label)
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let trackingArea {
-            removeTrackingArea(trackingArea)
+    @objc private func searchSubmitted() {
+        if text.isEmpty {
+            onClear?()
         }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        trackingArea = area
-        addTrackingArea(area)
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isHovering = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isHovering = false
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        sendAction(action, to: target)
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    private func applyAppearance() {
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(isHovering ? 0.22 : 0.13).cgColor
-        iconView.contentTintColor = NSColor.white.withAlphaComponent(isHovering ? 0.90 : 0.62)
-    }
-}
-
-private final class HistoryPanelActionButton: NSControl {
-    private static let buttonSize: CGFloat = 28
-    private static let iconSize: CGFloat = 13
-    private let iconView = NSImageView()
-
-    var isSelected = false {
-        didSet { applyAppearance() }
-    }
-
-    override var toolTip: String? {
-        didSet {
-            iconView.toolTip = toolTip
-        }
-    }
-
-    init(symbolName: String, accessibilityLabel: String) {
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 14
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        updateAccessibilityLabel(accessibilityLabel)
-
-        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-        iconView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: accessibilityLabel)?
-            .withSymbolConfiguration(config)
-        iconView.imageScaling = .scaleProportionallyDown
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(iconView)
-
-        NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: Self.buttonSize),
-            heightAnchor.constraint(equalToConstant: Self.buttonSize),
-            iconView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: Self.iconSize),
-            iconView.heightAnchor.constraint(equalToConstant: Self.iconSize),
-        ])
-        applyAppearance()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: Self.buttonSize, height: Self.buttonSize)
-    }
-
-    func updateAccessibilityLabel(_ label: String) {
-        toolTip = label
-        setAccessibilityLabel(label)
-    }
-
-    func updateSymbol(_ symbolName: String) {
-        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-        iconView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: toolTip)?
-            .withSymbolConfiguration(config)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        sendAction(action, to: target)
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    private func applyAppearance() {
-        layer?.backgroundColor = isSelected
-            ? accentGreen.withAlphaComponent(0.95).cgColor
-            : NSColor.white.withAlphaComponent(0.10).cgColor
-        iconView.contentTintColor = isSelected
-            ? NSColor.black.withAlphaComponent(0.88)
-            : NSColor.white.withAlphaComponent(0.68)
-    }
-}
-
-private final class HistoryPanelFilterButton: NSControl {
-    let filter: HistoryPanelFilter
-    private let label = NSTextField(labelWithString: "")
-    private let iconView = NSImageView()
-
-    var title: String {
-        get { label.stringValue }
-        set {
-            label.stringValue = newValue
-            toolTip = newValue
-            setAccessibilityLabel(newValue)
-            invalidateIntrinsicContentSize()
-        }
-    }
-
-    var isSelected: Bool = false {
-        didSet { applyAppearance() }
-    }
-
-    init(filter: HistoryPanelFilter) {
-        self.filter = filter
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 14
-        layer?.cornerCurve = .continuous
-
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        label.alignment = .center
-        label.isSelectable = false
-        addSubview(label)
-
-        iconView.imageScaling = .scaleProportionallyDown
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(iconView)
-
-        if let symbolName = filter.symbolName {
-            let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-            iconView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
-                .withSymbolConfiguration(config)
-            iconView.image?.isTemplate = true
-            label.isHidden = true
-        } else {
-            iconView.isHidden = true
-        }
-
-        NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: 28),
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -18),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 14),
-            iconView.heightAnchor.constraint(equalToConstant: 14),
-        ])
-
-        title = filter.title
-        applyAppearance()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(
-            width: filter.symbolName == nil ? label.intrinsicContentSize.width + 36 : 40,
-            height: 28
-        )
-    }
-
-    private func applyAppearance() {
-        if isSelected {
-            layer?.backgroundColor = accentGreen.withAlphaComponent(0.95).cgColor
-            label.textColor = .black
-            iconView.contentTintColor = .black
-        } else {
-            layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-            label.textColor = NSColor.white.withAlphaComponent(0.66)
-            iconView.contentTintColor = NSColor.white.withAlphaComponent(0.72)
-        }
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        sendAction(action, to: target)
     }
 }
 
@@ -4288,24 +4013,20 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         self.dragEntriesProvider = dragEntriesProvider
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = 8
+        layer?.cornerRadius = 12
         layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.075).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        layer?.borderWidth = 1
 
         imageView.imageScaling = .scaleProportionallyDown
         imageView.imageAlignment = .alignCenter
         imageView.wantsLayer = true
-        imageView.layer?.cornerRadius = 5
+        imageView.layer?.cornerRadius = 7
         imageView.layer?.cornerCurve = .continuous
         imageView.layer?.masksToBounds = true
-        imageView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.24).cgColor
         addSubview(imageView)
 
         textPreviewLabel.isHidden = true
         textPreviewLabel.font = NSFont.systemFont(ofSize: presentation == .dialog ? 13 : 12, weight: .medium)
-        textPreviewLabel.textColor = NSColor.white.withAlphaComponent(0.84)
+        textPreviewLabel.textColor = NSColor.labelColor
         textPreviewLabel.alignment = .natural
         textPreviewLabel.horizontalInset = 12
         textPreviewLabel.verticalInset = 9
@@ -4324,7 +4045,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         overlayLabel.lineBreakMode = .byWordWrapping
         overlayLabel.ignoresHitTesting = true
         overlayLabel.alphaValue = 0
-        overlayLabel.layer?.cornerRadius = 5
+        overlayLabel.layer?.cornerRadius = 7
         overlayLabel.layer?.cornerCurve = .continuous
         overlayLabel.layer?.masksToBounds = true
         overlayLabel.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.56).cgColor
@@ -4354,7 +4075,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
 
         let metadataFontSize: CGFloat = presentation == .dialog ? 12 : 9.5
         metaLabel.font = NSFont.monospacedDigitSystemFont(ofSize: metadataFontSize, weight: .semibold)
-        metaLabel.textColor = NSColor.white.withAlphaComponent(0.56)
+        metaLabel.textColor = .secondaryLabelColor
         metaLabel.alignment = .center
         metaLabel.horizontalInset = 0
         metaLabel.ignoresHitTesting = true
@@ -4499,12 +4220,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
     func setHovered(_ hovered: Bool) {
         guard isHovered != hovered else { return }
         isHovered = hovered
-        layer?.borderColor = hovered
-            ? accentGreen.withAlphaComponent(0.80).cgColor
-            : selectedBorderColor
-        layer?.backgroundColor = hovered
-            ? NSColor.white.withAlphaComponent(0.11).cgColor
-            : NSColor.white.withAlphaComponent(0.075).cgColor
+        updateTileAppearance()
         overlayLabel.alphaValue = hovered && !overlayLabel.isHidden ? 1 : 0
         cloudActionBarView.isHidden = entry.cloudURL == nil || !hovered
         cloudActionBarView.alphaValue = hovered ? 1 : 0
@@ -4527,18 +4243,34 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         selectionOrder = order
         isSelectionModeActive = selectionModeActive
         selectionBadgeView.order = order
-        layer?.borderColor = isHovered
-            ? accentGreen.withAlphaComponent(0.80).cgColor
-            : selectedBorderColor
-        layer?.borderWidth = order == nil ? 1 : 2
+        updateTileAppearance()
         updateSelectionBadgeVisibility()
         needsLayout = true
     }
 
-    private var selectedBorderColor: CGColor {
-        selectionOrder == nil
-            ? NSColor.white.withAlphaComponent(0.08).cgColor
-            : accentGreen.withAlphaComponent(0.95).cgColor
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateTileAppearance()
+    }
+
+    private func updateTileAppearance() {
+        let selected = selectionOrder != nil
+        let fill: NSColor = isHovered ? .tertiarySystemFill : .quaternarySystemFill
+        let border: NSColor = selected ? .controlAccentColor : .separatorColor
+        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(fill, for: effectiveAppearance)
+        layer?.borderColor = AdaptiveChrome.resolvedCGColor(border, for: effectiveAppearance)
+        layer?.borderWidth = selected ? 2 : 1
+        let previewBackground: NSColor
+        switch entry.kind {
+        case .color(let hex):
+            previewBackground = NSColor(hex: hex) ?? .black
+        case .text:
+            previewBackground = .quinarySystemFill
+        case .image, .video, .files:
+            let hasThumbnail = previewLoadState == .loaded && imageView.image?.isTemplate != true
+            previewBackground = hasThumbnail ? .clear : .quinarySystemFill
+        }
+        imageView.layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(previewBackground, for: effectiveAppearance)
     }
 
     private func updateSelectionBadgeVisibility() {
@@ -4557,7 +4289,6 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         imageView.image = nil
         imageView.alphaValue = 1
         imageView.contentTintColor = nil
-        imageView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.24).cgColor
         textPreviewLabel.stringValue = ""
         textPreviewLabel.toolTip = nil
         textPreviewLabel.isHidden = true
@@ -4586,9 +4317,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         selectionOrder = nil
         selectionBadgeView.order = nil
         selectionBadgeView.isHidden = true
-        layer?.borderColor = selectedBorderColor
-        layer?.borderWidth = 1
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.075).cgColor
+        updateTileAppearance()
         refreshFavoriteState()
 
         mouseDownPoint = nil
@@ -4610,8 +4339,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         case .color(let hex):
             configureColorPreview(hex: hex)
         case .text:
-            imageView.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.055).cgColor
-            metaLabel.stringValue = Self.metadata(label: L10n.historyPanelFilterText, date: entry.createdAt)
+                metaLabel.stringValue = Self.metadata(label: L10n.historyPanelFilterText, date: entry.createdAt)
         case .files(let files):
             configureFilePlaceholder(files)
         }
@@ -4949,7 +4677,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
             imageView.image = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
             imageView.contentTintColor = .secondaryLabelColor
         }
-        imageView.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.045).cgColor
+        updateTileAppearance()
         metaLabel.lineBreakMode = .byTruncatingMiddle
         metaLabel.stringValue = files.displayName
         toolTip = ([files.typeLabel] + files.references.prefix(20).map { $0.path }).joined(separator: "\n")
@@ -4999,8 +4727,8 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
             .withSymbolConfiguration(config)
         image?.isTemplate = true
         imageView.image = image
-        imageView.contentTintColor = NSColor.white.withAlphaComponent(0.18)
-        imageView.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.045).cgColor
+        imageView.contentTintColor = .tertiaryLabelColor
+        updateTileAppearance()
     }
 
     private func configureImagePreview(_ preview: HistoryImagePreview) {
@@ -5047,8 +4775,8 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
             .withSymbolConfiguration(config)
         image?.isTemplate = true
         imageView.image = image
-        imageView.contentTintColor = NSColor.white.withAlphaComponent(0.86)
-        imageView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.34).cgColor
+        imageView.contentTintColor = .secondaryLabelColor
+        updateTileAppearance()
         metaLabel.stringValue = Self.metadata(label: L10n.historyPanelFilterMP4, date: entry.createdAt)
     }
 
@@ -5063,7 +4791,6 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
     private func configureTextPreview(_ text: String) {
         let previewText = String(text.prefix(Self.textPreviewCharacterLimit))
         imageView.image = nil
-        imageView.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.055).cgColor
         textPreviewLabel.stringValue = previewText
         textPreviewLabel.toolTip = previewText
         textPreviewLabel.isHidden = false
@@ -5174,18 +4901,14 @@ private final class HistoryPreviewTooltipController {
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let content = AdaptiveChromeSurfaceView(
-            style: .floating,
-            cornerRadius: 6,
-            borderWidth: 1
-        )
+        let content = FloatingGlassView(cornerRadius: 12, fallbackMaterial: .toolTip)
         panel.contentView = content
 
         label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
         label.textColor = .labelColor
         label.usesSingleLineMode = true
         label.lineBreakMode = .byClipping
-        content.addSubview(label)
+        content.content.addSubview(label)
     }
 
     func show(_ text: String, relativeTo anchorView: NSView) {

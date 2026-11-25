@@ -11,14 +11,14 @@ final class AdaptiveChromeTests: XCTestCase {
         XCTAssertTrue(AdaptiveChrome.isDark(dark))
     }
 
-    func testToolbarBackgroundResolvesDifferentlyAcrossAppearances() throws {
+    func testPanelBackgroundResolvesDifferentlyAcrossAppearances() throws {
         let light = try XCTUnwrap(NSAppearance(named: .aqua))
         let dark = try XCTUnwrap(NSAppearance(named: .darkAqua))
         let lightColor = try colorComponents(
-            AdaptiveChrome.resolvedCGColor(AdaptiveChrome.toolbarBackground, for: light)
+            AdaptiveChrome.resolvedCGColor(AdaptiveChrome.panelBackground, for: light)
         )
         let darkColor = try colorComponents(
-            AdaptiveChrome.resolvedCGColor(AdaptiveChrome.toolbarBackground, for: dark)
+            AdaptiveChrome.resolvedCGColor(AdaptiveChrome.panelBackground, for: dark)
         )
 
         XCTAssertGreaterThan(lightColor.red, darkColor.red)

@@ -35,7 +35,7 @@ final class UpdateProgressWindow: NSPanel {
             window.orderFrontRegardless()
             NSApp.activate(ignoringOtherApps: true)
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.18
+                ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.18
                 window.animator().alphaValue = 1
             }
         }
@@ -46,7 +46,7 @@ final class UpdateProgressWindow: NSPanel {
         guard let window = current else { return }
         current = nil
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.2
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.2
             window.animator().alphaValue = 0
         }, completionHandler: {
             window.spinner.stopAnimation(nil)
@@ -69,7 +69,8 @@ final class UpdateProgressWindow: NSPanel {
         backgroundColor = .clear
         hasShadow = true
         isMovableByWindowBackground = false
-        let content = HUDBackgroundView(frame: NSRect(origin: .zero, size: Self.windowSize))
+        let surface = FloatingGlassView(frame: NSRect(origin: .zero, size: Self.windowSize), cornerRadius: 22)
+        let content = surface.content
 
         spinner.style = .spinning
         spinner.controlSize = .small
@@ -89,7 +90,7 @@ final class UpdateProgressWindow: NSPanel {
         content.addSubview(spinner)
         content.addSubview(bar)
         content.addSubview(label)
-        contentView = content
+        contentView = surface
     }
 
     // MARK: - Layout
@@ -131,19 +132,5 @@ final class UpdateProgressWindow: NSPanel {
             x: visible.midX - Self.windowSize.width / 2,
             y: visible.midY - Self.windowSize.height / 2
         ))
-    }
-}
-
-/// Draws the rounded adaptive chip behind the HUD's contents — matches the toast
-/// styling used elsewhere in the app.
-private final class HUDBackgroundView: NSView {
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1),
-                                xRadius: 12, yRadius: 12)
-        AdaptiveChrome.floatingBackground.setFill()
-        path.fill()
-        AdaptiveChrome.border.setStroke()
-        path.lineWidth = 0.5
-        path.stroke()
     }
 }

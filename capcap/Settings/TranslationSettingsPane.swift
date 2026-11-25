@@ -64,22 +64,15 @@ final class TranslationSettingsPane: NSView {
     }
 
     private func buildDictionaryModeCard() -> NSView {
-        let card = NSView()
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.wantsLayer = true
-        card.layer?.cornerRadius = 12
-        card.layer?.cornerCurve = .continuous
-        card.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.04).cgColor
-        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        card.layer?.borderWidth = 1
+        let card = SettingsGroupView()
 
         dictionaryModeTitleLabel.stringValue = L10n.translationDictionaryModeTitle
         dictionaryModeTitleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        dictionaryModeTitleLabel.textColor = NSColor.white.withAlphaComponent(0.94)
+        dictionaryModeTitleLabel.textColor = .labelColor
 
         dictionaryModeSubtitleLabel.stringValue = L10n.translationDictionaryModeSubtitle
         dictionaryModeSubtitleLabel.font = NSFont.systemFont(ofSize: 11)
-        dictionaryModeSubtitleLabel.textColor = NSColor.white.withAlphaComponent(0.55)
+        dictionaryModeSubtitleLabel.textColor = .secondaryLabelColor
         dictionaryModeSubtitleLabel.maximumNumberOfLines = 0
         dictionaryModeSubtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
@@ -89,14 +82,15 @@ final class TranslationSettingsPane: NSView {
         textStack.spacing = 3
         textStack.translatesAutoresizingMaskIntoConstraints = false
 
-        dictionaryModeSwitch.controlSize = .small
+        dictionaryModeSwitch.setAccessibilityTitleUIElement(dictionaryModeTitleLabel)
+        dictionaryModeSwitch.controlSize = .regular
         dictionaryModeSwitch.state = Defaults.translationDictionaryMode ? .on : .off
         dictionaryModeSwitch.target = self
         dictionaryModeSwitch.action = #selector(dictionaryModeToggled)
         dictionaryModeSwitch.translatesAutoresizingMaskIntoConstraints = false
 
-        card.addSubview(textStack)
-        card.addSubview(dictionaryModeSwitch)
+        card.content.addSubview(textStack)
+        card.content.addSubview(dictionaryModeSwitch)
 
         NSLayoutConstraint.activate([
             textStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
@@ -178,7 +172,7 @@ private final class TKTextField: NSTextField {
 
 // MARK: - Provider card
 
-private final class TranslationProviderCard: NSView {
+private final class TranslationProviderCard: SettingsGroupView {
     private static let maxFailureSummaryLength = 220
     private static let maxFailureDetailLength = 4_000
     private static let failureDetailSize = NSSize(width: 480, height: 160)
@@ -209,13 +203,7 @@ private final class TranslationProviderCard: NSView {
         self.kind = kind
         let isEnabled = TranslationConfigStore.isEnabled(kind)
         self.isExpanded = kind.isAppleTranslation || isEnabled
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 12
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.04).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        layer?.borderWidth = 1
+        super.init()
         buildUI()
         loadFromStore()
         enableSwitch.state = isEnabled ? .on : .off
@@ -230,16 +218,17 @@ private final class TranslationProviderCard: NSView {
         outer.alignment = .leading
         outer.spacing = 10
         outer.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(outer)
+        content.addSubview(outer)
         pin(outer, to: self, inset: 14)
 
         // Header.
         titleLabel.stringValue = kind.displayName
         titleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        titleLabel.textColor = NSColor.white.withAlphaComponent(0.94)
+        titleLabel.textColor = .labelColor
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        enableSwitch.controlSize = .small
+        enableSwitch.setAccessibilityTitleUIElement(titleLabel)
+        enableSwitch.controlSize = .regular
         enableSwitch.target = self
         enableSwitch.action = #selector(switchToggled)
         enableSwitch.translatesAutoresizingMaskIntoConstraints = false
@@ -289,7 +278,7 @@ private final class TranslationProviderCard: NSView {
         if kind.isAppleTranslation {
             appleSubtitleLabel.stringValue = L10n.translationAppleSubtitle
             appleSubtitleLabel.font = NSFont.systemFont(ofSize: 11)
-            appleSubtitleLabel.textColor = NSColor.white.withAlphaComponent(0.62)
+            appleSubtitleLabel.textColor = .secondaryLabelColor
             appleSubtitleLabel.maximumNumberOfLines = 0
             appleSubtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             body.addArrangedSubview(appleSubtitleLabel)
@@ -348,7 +337,7 @@ private final class TranslationProviderCard: NSView {
                               width: NSView) -> NSView {
         label.stringValue = labelText
         label.font = NSFont.systemFont(ofSize: 11)
-        label.textColor = NSColor.white.withAlphaComponent(0.74)
+        label.textColor = .secondaryLabelColor
         label.alignment = .right
         label.isEditable = false
         label.isBordered = false

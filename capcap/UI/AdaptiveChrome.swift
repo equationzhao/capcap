@@ -7,77 +7,12 @@ import AppKit
 /// `CGColor` resolves the color once, so layer-backed views must resolve again
 /// from `viewDidChangeEffectiveAppearance`
 enum AdaptiveChrome {
-    static let floatingBackground = NSColor(
-        name: NSColor.Name("capcap.floatingBackground")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor(white: 0.15, alpha: 0.94)
-            : NSColor(white: 0.98, alpha: 0.96)
-    }
-
-    static let toolbarBackground = NSColor(
-        name: NSColor.Name("capcap.toolbarBackground")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor(white: 0.12, alpha: 0.90)
-            : NSColor(white: 0.97, alpha: 0.94)
-    }
-
-    static let panelBackground = NSColor(
-        name: NSColor.Name("capcap.panelBackground")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor(calibratedRed: 0.13, green: 0.14, blue: 0.16, alpha: 0.98)
-            : NSColor(calibratedRed: 0.97, green: 0.975, blue: 0.985, alpha: 0.98)
-    }
-
-    static let popoverBackground = NSColor(
-        name: NSColor.Name("capcap.popoverBackground")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor(calibratedRed: 0.12, green: 0.13, blue: 0.15, alpha: 1)
-            : NSColor(calibratedWhite: 0.99, alpha: 1)
-    }
-
-    static let cardBackground = NSColor(
-        name: NSColor.Name("capcap.cardBackground")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor.white.withAlphaComponent(0.06)
-            : NSColor.black.withAlphaComponent(0.055)
-    }
-
-    static let border = NSColor(
-        name: NSColor.Name("capcap.border")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor.white.withAlphaComponent(0.16)
-            : NSColor.black.withAlphaComponent(0.16)
-    }
-
-    static let subtleFill = NSColor(
-        name: NSColor.Name("capcap.subtleFill")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor.white.withAlphaComponent(0.10)
-            : NSColor.black.withAlphaComponent(0.08)
-    }
-
-    static let selectedFill = NSColor(
-        name: NSColor.Name("capcap.selectedFill")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor.white.withAlphaComponent(0.15)
-            : NSColor.black.withAlphaComponent(0.10)
-    }
-
-    static let separator = NSColor(
-        name: NSColor.Name("capcap.separator")
-    ) { appearance in
-        isDark(appearance)
-            ? NSColor.white.withAlphaComponent(0.20)
-            : NSColor.black.withAlphaComponent(0.16)
-    }
+    static let panelBackground = NSColor.windowBackgroundColor
+    static let cardBackground = NSColor.quaternarySystemFill
+    static let border = NSColor.separatorColor
+    static let subtleFill = NSColor.quaternarySystemFill
+    static let selectedFill = NSColor.tertiarySystemFill
+    static let separator = NSColor.separatorColor
 
     static func isDark(_ appearance: NSAppearance) -> Bool {
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -101,8 +36,7 @@ enum AdaptiveChrome {
 enum FloatingControlChrome {
     static let height: CGFloat = 32
     static let buttonSide: CGFloat = 24
-    static let cornerRadius: CGFloat = 10
-    static let borderWidth: CGFloat = 0.5
+    static let cornerRadius = height / 2
     static let gap: CGFloat = 8
     static let screenEdgeInset: CGFloat = 4
 
@@ -132,22 +66,93 @@ enum FloatingControlChrome {
     }
 }
 
+/// A system material for floating controls and transient panels
+final class FloatingGlassView: NSView {
+    let content: NSView
+
+    init(
+        frame: NSRect = .zero,
+        content: NSView? = nil,
+        cornerRadius: CGFloat,
+        interactive: Bool = false,
+        blendingMode: NSVisualEffectView.BlendingMode = .behindWindow,
+        fallbackMaterial: NSVisualEffectView.Material = .popover
+    ) {
+        let content = content ?? NSView()
+        self.content = content
+        super.init(frame: frame)
+
+        let background: NSView
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectView(frame: bounds)
+            glass.style = .regular
+            glass.cornerRadius = cornerRadius
+            glass.contentView = content
+            #if compiler(>=6.4)
+            if #available(macOS 27.0, *) {
+                glass.effectIsInteractive = interactive
+            }
+            #endif
+            background = glass
+        } else {
+            let material = NSVisualEffectView(frame: bounds)
+            material.material = fallbackMaterial
+            material.blendingMode = blendingMode
+            material.state = .active
+            material.wantsLayer = true
+            material.layer?.cornerRadius = cornerRadius
+            material.layer?.cornerCurve = .continuous
+            material.layer?.masksToBounds = true
+            material.addSubview(content)
+            background = material
+        }
+        background.autoresizingMask = [.width, .height]
+        addSubview(background)
+        content.frame = background.bounds
+        content.autoresizingMask = [.width, .height]
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+/// A single material behind a control group embedded in a larger view
+class FloatingToolbarView: NSView {
+    private let surface: FloatingGlassView
+    var controls: NSView { surface.content }
+
+    init(
+        frame: NSRect,
+        cornerRadius: CGFloat,
+        blendingMode: NSVisualEffectView.BlendingMode = .withinWindow
+    ) {
+        surface = FloatingGlassView(
+            frame: NSRect(origin: .zero, size: frame.size),
+            cornerRadius: cornerRadius,
+            interactive: true,
+            blendingMode: blendingMode
+        )
+        super.init(frame: frame)
+        surface.autoresizingMask = [.width, .height]
+        addSubview(surface)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
 /// Layer-backed rounded surface whose colors continue to follow live system
 /// appearance changes
 final class AdaptiveChromeSurfaceView: NSView {
     enum Style {
-        case floating
-        case toolbar
         case panel
-        case popover
         case card
 
         var backgroundColor: NSColor {
             switch self {
-            case .floating: return AdaptiveChrome.floatingBackground
-            case .toolbar: return AdaptiveChrome.toolbarBackground
             case .panel: return AdaptiveChrome.panelBackground
-            case .popover: return AdaptiveChrome.popoverBackground
             case .card: return AdaptiveChrome.cardBackground
             }
         }

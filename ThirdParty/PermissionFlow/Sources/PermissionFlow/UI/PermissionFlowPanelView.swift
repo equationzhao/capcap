@@ -20,14 +20,7 @@ struct PermissionFlowPanelView: View {
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .fixedSize(horizontal: false, vertical: true)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(.primary.opacity(0.14), lineWidth: 1)
-                )
-        )
+
     }
 
     /// Keeps the header logic isolated from the drag card layout.

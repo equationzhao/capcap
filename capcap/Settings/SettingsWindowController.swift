@@ -24,16 +24,14 @@ class SettingsWindowController: NSWindowController {
 
     private init() {
         let window = SettingsWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 760, height: 560),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 560),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = L10n.settingsTitle
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.backgroundColor = NSColor(calibratedRed: 0.09, green: 0.12, blue: 0.16, alpha: 1.0)
+        window.titlebarSeparatorStyle = .none
+        window.contentMinSize = NSSize(width: 760, height: 420)
         window.center()
         window.isReleasedWhenClosed = false
         window.level = .normal
@@ -44,7 +42,7 @@ class SettingsWindowController: NSWindowController {
             self?.window?.title = L10n.settingsTitle
         }
 
-        settingsView = SettingsView(frame: NSRect(x: 0, y: 0, width: 760, height: 560), isStartup: true)
+        settingsView = SettingsView(frame: .zero, isStartup: true)
         settingsView.onMenuBarToggle = { [weak self] visible in
             self?.onMenuBarToggle?(visible)
         }
@@ -55,7 +53,7 @@ class SettingsWindowController: NSWindowController {
             self?.window?.close()
             self?.onLaunch?()
         }
-        window.contentView = settingsView
+        window.contentViewController = settingsView.makeContentViewController()
         window.initialFirstResponder = settingsView
         window.delegate = self
     }

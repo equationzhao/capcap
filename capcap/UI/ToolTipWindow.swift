@@ -1,7 +1,6 @@
 import AppKit
 
 /// Single-instance hover tooltip used by the editor toolbar
-/// Self-drawn to match the adaptive toolbar / cursor chip aesthetic
 final class ToolTipWindow: NSPanel {
     private static var current: ToolTipWindow?
     private static var pendingWorkItem: DispatchWorkItem?
@@ -35,14 +34,20 @@ final class ToolTipWindow: NSPanel {
         current = tip
 
         let gap: CGFloat = 6
-        let x = anchor.midX - tip.frame.width / 2
-        let y = anchor.maxY + gap
-        tip.setFrameOrigin(NSPoint(x: x, y: y))
+        var origin = NSPoint(x: anchor.midX - tip.frame.width / 2, y: anchor.maxY + gap)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: anchor.midX, y: anchor.midY)) }) {
+            let visible = screen.visibleFrame.insetBy(dx: 4, dy: 4)
+            origin.x = max(visible.minX, min(origin.x, visible.maxX - tip.frame.width))
+            if origin.y + tip.frame.height > visible.maxY {
+                origin.y = max(visible.minY, anchor.minY - gap - tip.frame.height)
+            }
+        }
+        tip.setFrameOrigin(origin)
 
         tip.alphaValue = 0
         tip.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.12
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.12
             tip.animator().alphaValue = 1.0
         }
     }
@@ -71,41 +76,16 @@ final class ToolTipWindow: NSPanel {
         ignoresMouseEvents = true
         collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
 
-        contentView = ToolTipContentView(frame: NSRect(origin: .zero, size: size), text: text)
-    }
-}
-
-private final class ToolTipContentView: NSView {
-    private let text: String
-
-    init(frame: NSRect, text: String) {
-        self.text = text
-        super.init(frame: frame)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 6, yRadius: 6)
-        AdaptiveChrome.floatingBackground.setFill()
-        path.fill()
-        AdaptiveChrome.border.setStroke()
-        path.lineWidth = 0.5
-        path.stroke()
-
-        let attrs: [NSAttributedString.Key: Any] = [
-            .foregroundColor: NSColor.labelColor,
-            .font: NSFont.systemFont(ofSize: 11, weight: .medium)
-        ]
-        let size = text.size(withAttributes: attrs)
-        let textRect = NSRect(
-            x: (bounds.width - size.width) / 2,
-            y: (bounds.height - size.height) / 2,
-            width: size.width,
-            height: size.height
+        let surface = FloatingGlassView(
+            frame: NSRect(origin: .zero, size: size),
+            cornerRadius: size.height / 2,
+            fallbackMaterial: .toolTip
         )
-        text.draw(in: textRect, withAttributes: attrs)
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: 11, weight: .medium)
+        label.sizeToFit()
+        label.setFrameOrigin(NSPoint(x: (size.width - label.frame.width) / 2, y: (size.height - label.frame.height) / 2))
+        surface.content.addSubview(label)
+        contentView = surface
     }
 }

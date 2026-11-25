@@ -69,6 +69,7 @@
 "pinToolbarDrag" = "Drag pinned image";
 "pinToolbarEdit" = "Edit pinned image";
 "pinToolbarEditText" = "Edit text";
+"pinToolbarCloseText" = "Close";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "Edit Selected Image";
@@ -772,3 +773,7 @@
 "historyFilePreviewRetry" = "Check again";
 
 "historyFilePreviewUnavailable" = "Preview unavailable for this file";
+"editorStrokeWidth" = "Stroke Width";
+"editorFontSize" = "Font Size";
+"ocrPinPanel" = "Pin Panel";
+"ocrUnpinPanel" = "Unpin Panel";

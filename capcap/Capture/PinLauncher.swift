@@ -2173,7 +2173,7 @@ final class PinContentView: NSView, NSDraggingSource {
             guard let self, !self.isToolbarVisible else { return }
             self.toolbar.isHidden = true
         }
-        if animated {
+        if animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = PinZoom.toolbarAnimationDuration
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -2190,7 +2190,7 @@ final class PinContentView: NSView, NSDraggingSource {
 
 // MARK: - Pin Toolbar
 
-final class PinToolbarView: NSView {
+final class PinToolbarView: FloatingToolbarView {
     static let preferredWidth: CGFloat = 202
     static let preferredHeight = FloatingControlChrome.height
     static let iconButtonSide: CGFloat = 24
@@ -2247,8 +2247,8 @@ final class PinToolbarView: NSView {
     )
     private var trackingArea: NSTrackingArea?
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
+    init(frame frameRect: NSRect = .zero) {
+        super.init(frame: frameRect, cornerRadius: FloatingControlChrome.cornerRadius)
         setup()
     }
 
@@ -2257,17 +2257,6 @@ final class PinToolbarView: NSView {
     }
 
     private func setup() {
-        wantsLayer = true
-        layer?.masksToBounds = false
-        layer?.cornerCurve = .continuous
-        layer?.cornerRadius = FloatingControlChrome.cornerRadius
-        layer?.borderWidth = FloatingControlChrome.borderWidth
-        layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.24
-        layer?.shadowRadius = 5
-        layer?.shadowOffset = NSSize(width: 0, height: -1)
-        applyAppearance()
-
         editButton.toolTip = L10n.pinToolbarEdit
         editButton.target = self
         editButton.action = #selector(editTapped)
@@ -2292,12 +2281,12 @@ final class PinToolbarView: NSView {
 
         zoomLabel.alignment = .center
 
-        addSubview(closeButton)
-        addSubview(dragButton)
-        addSubview(editButton)
-        addSubview(ocrButton)
-        addSubview(copyButton)
-        addSubview(zoomLabel)
+        controls.addSubview(closeButton)
+        controls.addSubview(dragButton)
+        controls.addSubview(editButton)
+        controls.addSubview(ocrButton)
+        controls.addSubview(copyButton)
+        controls.addSubview(zoomLabel)
     }
 
     override func layout() {
@@ -2347,22 +2336,6 @@ final class PinToolbarView: NSView {
             + CGFloat(iconCount) * iconButtonSide
             + CGFloat(gapCount) * itemGap
             + zoomMinimumWidth
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        applyAppearance()
-    }
-
-    private func applyAppearance() {
-        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.floatingBackground,
-            for: effectiveAppearance
-        )
-        layer?.borderColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.border,
-            for: effectiveAppearance
-        )
     }
 
     override func updateTrackingAreas() {
@@ -2551,9 +2524,9 @@ private class PinToolbarIconButton: NSButton {
     private func updateAppearance() {
         switch style {
         case .standard:
-            contentTintColor = isActive ? .white : .labelColor
+            contentTintColor = isActive ? .controlAccentColor : .labelColor
             layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(
-                isActive ? accentGreen.withAlphaComponent(0.86) : .clear,
+                isActive ? NSColor.controlAccentColor.withAlphaComponent(0.16) : .clear,
                 for: effectiveAppearance
             )
         case .destructive:
@@ -2593,7 +2566,7 @@ private final class PinToolbarDragButton: PinToolbarIconButton {
     }
 }
 
-private final class TextPinToolbarView: NSView {
+private final class TextPinToolbarView: FloatingToolbarView {
     static let preferredWidth: CGFloat = 106
     static let preferredHeight: CGFloat = 34
 
@@ -2602,13 +2575,13 @@ private final class TextPinToolbarView: NSView {
     var onEditText: (() -> Void)?
     var onPointerEvent: ((NSEvent) -> Void)?
 
-    private let closeButton = PinToolbarIconButton(symbolName: "xmark", accessibilityLabel: L10n.imageMergeClose)
+    private let closeButton = PinToolbarIconButton(symbolName: "xmark", accessibilityLabel: L10n.pinToolbarCloseText)
     private let textEditButton = PinToolbarIconButton(symbolName: "textformat", accessibilityLabel: L10n.pinToolbarEditText)
     private let editButton = PinToolbarIconButton(symbolName: "pencil", accessibilityLabel: L10n.pinToolbarEdit)
     private var trackingArea: NSTrackingArea?
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
+    init(frame frameRect: NSRect = .zero) {
+        super.init(frame: frameRect, cornerRadius: Self.preferredHeight / 2)
         setup()
     }
 
@@ -2617,10 +2590,7 @@ private final class TextPinToolbarView: NSView {
     }
 
     private func setup() {
-        wantsLayer = true
-        layer?.masksToBounds = false
-
-        closeButton.toolTip = L10n.imageMergeClose
+        closeButton.toolTip = L10n.pinToolbarCloseText
         closeButton.target = self
         closeButton.action = #selector(closeTapped)
         textEditButton.toolTip = L10n.pinToolbarEditText
@@ -2630,9 +2600,9 @@ private final class TextPinToolbarView: NSView {
         editButton.target = self
         editButton.action = #selector(editTapped)
 
-        addSubview(closeButton)
-        addSubview(textEditButton)
-        addSubview(editButton)
+        controls.addSubview(closeButton)
+        controls.addSubview(textEditButton)
+        controls.addSubview(editButton)
     }
 
     override func updateTrackingAreas() {
@@ -2678,20 +2648,6 @@ private final class TextPinToolbarView: NSView {
             width: buttonSide,
             height: buttonSide
         )
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(
-            roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
-            xRadius: bounds.height / 2,
-            yRadius: bounds.height / 2
-        )
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-
-        AdaptiveChrome.border.setStroke()
-        path.lineWidth = 1
-        path.stroke()
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {

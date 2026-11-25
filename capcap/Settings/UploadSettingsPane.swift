@@ -70,22 +70,15 @@ final class UploadSettingsPane: NSView {
     /// Card with the "copy as Markdown link" switch, shown above the provider
     /// cards. Controls whether a successful upload copies `![](url)` or a raw URL.
     private func buildMarkdownCard() -> NSView {
-        let card = NSView()
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.wantsLayer = true
-        card.layer?.cornerRadius = 12
-        card.layer?.cornerCurve = .continuous
-        card.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.04).cgColor
-        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        card.layer?.borderWidth = 1
+        let card = SettingsGroupView()
 
         markdownTitleLabel.stringValue = L10n.uploadMarkdownToggleTitle
         markdownTitleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        markdownTitleLabel.textColor = NSColor.white.withAlphaComponent(0.94)
+        markdownTitleLabel.textColor = NSColor.labelColor
 
         markdownSubtitleLabel.stringValue = L10n.uploadMarkdownToggleSubtitle
         markdownSubtitleLabel.font = NSFont.systemFont(ofSize: 11)
-        markdownSubtitleLabel.textColor = NSColor.white.withAlphaComponent(0.55)
+        markdownSubtitleLabel.textColor = NSColor.secondaryLabelColor
         markdownSubtitleLabel.maximumNumberOfLines = 0
         // Let the label wrap to the card width instead of widening the window.
         markdownSubtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -96,22 +89,23 @@ final class UploadSettingsPane: NSView {
         textStack.spacing = 3
         textStack.translatesAutoresizingMaskIntoConstraints = false
 
-        markdownSwitch.controlSize = .small
+        markdownSwitch.controlSize = .regular
+        markdownSwitch.setAccessibilityTitleUIElement(markdownTitleLabel)
         markdownSwitch.state = Defaults.copyUploadAsMarkdown ? .on : .off
         markdownSwitch.target = self
         markdownSwitch.action = #selector(markdownSwitchToggled)
         markdownSwitch.translatesAutoresizingMaskIntoConstraints = false
 
-        card.addSubview(textStack)
-        card.addSubview(markdownSwitch)
+        card.content.addSubview(textStack)
+        card.content.addSubview(markdownSwitch)
 
         NSLayoutConstraint.activate([
-            textStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
-            textStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 12),
-            textStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12),
+            textStack.leadingAnchor.constraint(equalTo: card.content.leadingAnchor, constant: 14),
+            textStack.topAnchor.constraint(equalTo: card.content.topAnchor, constant: 12),
+            textStack.bottomAnchor.constraint(equalTo: card.content.bottomAnchor, constant: -12),
             textStack.trailingAnchor.constraint(equalTo: markdownSwitch.leadingAnchor, constant: -12),
 
-            markdownSwitch.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            markdownSwitch.trailingAnchor.constraint(equalTo: card.content.trailingAnchor, constant: -14),
             markdownSwitch.centerYAnchor.constraint(equalTo: textStack.centerYAnchor),
 
             // Pin the wrapping subtitle to the stack's definite width so it
@@ -296,7 +290,7 @@ private enum TestStatus {
 
 // MARK: - Per-provider card
 
-private final class ProviderCard: NSView {
+private final class ProviderCard: SettingsGroupView {
     let kind: UploadProviderKind
     let defaultBadge = DefaultProviderBadge()
     let setDefaultButton = NSButton(title: L10n.uploadSetDefaultButton, target: nil, action: nil)
@@ -325,13 +319,7 @@ private final class ProviderCard: NSView {
         self.kind = kind
         self.fields = fields
         self.isExpanded = ProviderConfigStore.isEnabled(kind: kind)
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 12
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.04).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        layer?.borderWidth = 1
+        super.init()
         buildUI()
         loadFromStore()
         enableSwitch.state = isExpanded ? .on : .off
@@ -346,12 +334,12 @@ private final class ProviderCard: NSView {
     private func buildUI() {
         let header = buildHeader()
         header.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(header)
+        content.addSubview(header)
 
         bodyContainer.translatesAutoresizingMaskIntoConstraints = false
         bodyContainer.wantsLayer = true
         bodyContainer.layer?.masksToBounds = true
-        addSubview(bodyContainer)
+        content.addSubview(bodyContainer)
 
         let bodyStack = buildBodyStack()
         bodyStack.translatesAutoresizingMaskIntoConstraints = false
@@ -386,13 +374,14 @@ private final class ProviderCard: NSView {
     private func buildHeader() -> NSView {
         titleLabel.stringValue = kind.displayName
         titleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        titleLabel.textColor = NSColor.white.withAlphaComponent(0.94)
+        titleLabel.textColor = NSColor.labelColor
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         defaultBadge.stringValue = L10n.uploadCurrentDefault
         defaultBadge.isHidden = true
 
-        enableSwitch.controlSize = .small
+        enableSwitch.controlSize = .regular
+        enableSwitch.setAccessibilityTitleUIElement(titleLabel)
         enableSwitch.target = self
         enableSwitch.action = #selector(switchToggled)
         enableSwitch.translatesAutoresizingMaskIntoConstraints = false
@@ -426,7 +415,7 @@ private final class ProviderCard: NSView {
 
             let label = NSTextField(labelWithString: f.label)
             label.font = NSFont.systemFont(ofSize: 11)
-            label.textColor = NSColor.white.withAlphaComponent(0.74)
+            label.textColor = NSColor.secondaryLabelColor
             label.alignment = .right
             label.translatesAutoresizingMaskIntoConstraints = false
             label.widthAnchor.constraint(equalToConstant: 144).isActive = true
@@ -436,6 +425,7 @@ private final class ProviderCard: NSView {
             let input: any ProviderFieldInput = f.secure
                 ? RevealableSecureField()
                 : PasteableTextField()
+            input.setAccessibilityTitleUIElement(label)
             input.placeholderString = f.placeholder
             input.font = NSFont.systemFont(ofSize: 12)
             input.translatesAutoresizingMaskIntoConstraints = false
@@ -812,7 +802,7 @@ private enum LogLevel {
 
     var color: NSColor {
         switch self {
-        case .info:    return NSColor.white.withAlphaComponent(0.78)
+        case .info:    return .labelColor
         case .success: return NSColor.systemGreen
         case .error:   return NSColor.systemOrange
         }
@@ -834,13 +824,12 @@ private final class LogView: NSView {
         wantsLayer = true
         layer?.cornerRadius = 8
         layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.black.withAlphaComponent(0.28).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        layer?.borderWidth = 1
+        layer?.masksToBounds = true
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
-        scrollView.drawsBackground = false
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = .textBackgroundColor
         scrollView.borderType = .noBorder
         scrollView.autohidesScrollers = true
         addSubview(scrollView)
@@ -850,7 +839,7 @@ private final class LogView: NSView {
         textView.drawsBackground = false
         textView.textContainerInset = NSSize(width: 8, height: 6)
         textView.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-        textView.textColor = NSColor.white.withAlphaComponent(0.78)
+        textView.textColor = .labelColor
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
@@ -885,7 +874,7 @@ private final class LogView: NSView {
             string: leadingNewline + prefix,
             attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
-                .foregroundColor: NSColor.white.withAlphaComponent(0.45),
+                .foregroundColor: NSColor.secondaryLabelColor,
             ]
         )
         let bodyAttr = NSAttributedString(
@@ -966,7 +955,7 @@ final class RevealableSecureField: NSView, ProviderFieldInput, NSTextFieldDelega
         toggleButton.imagePosition = .imageOnly
         toggleButton.isBordered = false
         toggleButton.bezelStyle = .accessoryBarAction
-        toggleButton.contentTintColor = NSColor.white.withAlphaComponent(0.55)
+        toggleButton.contentTintColor = .secondaryLabelColor
         toggleButton.target = self
         toggleButton.action = #selector(toggleReveal)
         toggleButton.refusesFirstResponder = true

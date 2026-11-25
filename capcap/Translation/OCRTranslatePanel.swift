@@ -1,6 +1,5 @@
 import AVFoundation
 import AppKit
-import CoreText
 import VisionKit
 
 // MARK: - Shared helpers
@@ -712,63 +711,32 @@ final class OCRLineSelectionOverlayView: NSView {
 }
 
 private final class PanelPinButton: NSButton {
-    private var pinned = false
-    private let pinSymbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         title = ""
         imagePosition = .imageOnly
         imageScaling = .scaleProportionallyDown
-        isBordered = false
-        bezelStyle = .regularSquare
-        focusRingType = .none
-        wantsLayer = true
-        layer?.masksToBounds = false
-        layer?.borderWidth = 1.2
-        layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.28
-        layer?.shadowRadius = 3
-        layer?.shadowOffset = NSSize(width: 0, height: -1)
+        controlSize = .small
+        if #available(macOS 26.0, *) {
+            bezelStyle = .glass
+        } else {
+            bezelStyle = .rounded
+        }
         setPinned(false)
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override var acceptsFirstResponder: Bool { false }
-
-    override func layout() {
-        super.layout()
-        layer?.cornerRadius = min(bounds.width, bounds.height) / 2
-        layer?.shadowPath = CGPath(ellipseIn: bounds, transform: nil)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
     func setPinned(_ pinned: Bool) {
-        self.pinned = pinned
-        let label = pinned ? "Unpin dialog" : "Pin dialog"
+        let label = pinned ? L10n.ocrUnpinPanel : L10n.ocrPinPanel
         let symbolName = pinned ? "pin.fill" : "pin"
         image = NSImage(systemSymbolName: symbolName, accessibilityDescription: label)?
-            .withSymbolConfiguration(pinSymbolConfiguration)
-        updateAppearance()
+            .withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
+        contentTintColor = pinned ? .controlAccentColor : .labelColor
         toolTip = label
         setAccessibilityLabel(label)
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        updateAppearance()
-    }
-
-    private func updateAppearance() {
-        contentTintColor = pinned ? .white : .labelColor
-        let background = pinned
-            ? accentGreen.withAlphaComponent(0.96)
-            : AdaptiveChrome.floatingBackground
-        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(background, for: effectiveAppearance)
-        layer?.borderColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.border,
-            for: effectiveAppearance
-        )
     }
 }
 
@@ -787,118 +755,51 @@ private final class TranslationHeaderView: NSView {
     }
 }
 
-private final class AnimatedGradientTextLabel: NSView {
-    private static let animationKey = "gradientTextSweep"
-    private static let restingLocations = [0.0, 0.24, 0.48, 0.72, 1.0].map { NSNumber(value: $0) }
-    private static let sweepStartLocations = [-0.42, -0.18, 0.04, 0.24, 0.46].map { NSNumber(value: $0) }
-    private static let sweepEndLocations = [0.54, 0.76, 0.96, 1.18, 1.42].map { NSNumber(value: $0) }
+private final class TranslationProgressLabel: NSStackView {
+    private let label = NSTextField(labelWithString: "")
+    private let indicator = NSProgressIndicator()
 
-    private let gradientLayer = CAGradientLayer()
-    private let textMaskLayer = CATextLayer()
-
-    var stringValue = "" {
-        didSet { updateTextLayer() }
+    var stringValue: String {
+        get { label.stringValue }
+        set { label.stringValue = newValue }
     }
 
-    var font = NSFont.systemFont(ofSize: 12, weight: .semibold) {
-        didSet { updateTextLayer() }
+    var font: NSFont? {
+        get { label.font }
+        set { label.font = newValue }
     }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        orientation = .horizontal
+        alignment = .centerY
+        spacing = 6
         translatesAutoresizingMaskIntoConstraints = false
-        setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        setHuggingPriority(.defaultHigh, for: .horizontal)
+        label.lineBreakMode = .byTruncatingTail
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        wantsLayer = true
-        let hostLayer = CALayer()
-        hostLayer.masksToBounds = false
-        layer = hostLayer
-
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0.5)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 0.5)
-        updateAppearance()
-        gradientLayer.locations = Self.restingLocations
-        gradientLayer.mask = textMaskLayer
-        hostLayer.addSublayer(gradientLayer)
-
-        textMaskLayer.alignmentMode = .left
-        textMaskLayer.truncationMode = .end
-        textMaskLayer.isWrapped = false
-        textMaskLayer.foregroundColor = NSColor.white.cgColor
-        updateTextLayer()
+        indicator.style = .spinning
+        indicator.controlSize = .small
+        indicator.isIndeterminate = true
+        indicator.isHidden = true
+        indicator.setAccessibilityElement(false)
+        addArrangedSubview(indicator)
+        addArrangedSubview(label)
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override var intrinsicContentSize: NSSize {
-        let size = (stringValue as NSString).size(withAttributes: [.font: font])
-        let textHeight = ceil(font.ascender - font.descender + font.leading)
-        return NSSize(width: max(1, ceil(size.width)), height: max(16, textHeight + 2))
-    }
-
-    override func layout() {
-        super.layout()
-        gradientLayer.frame = bounds
-        textMaskLayer.frame = bounds
-        updateLayerScale()
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        updateLayerScale()
-        if window == nil {
-            stopAnimating()
-        }
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        updateAppearance()
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
     func startAnimating() {
-        guard gradientLayer.animation(forKey: Self.animationKey) == nil else { return }
-
-        gradientLayer.locations = Self.sweepStartLocations
-
-        let animation = CABasicAnimation(keyPath: "locations")
-        animation.fromValue = Self.sweepStartLocations
-        animation.toValue = Self.sweepEndLocations
-        animation.duration = 1.8
-        animation.repeatCount = .infinity
-        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        gradientLayer.add(animation, forKey: Self.animationKey)
+        indicator.isHidden = false
+        indicator.startAnimation(nil)
     }
 
     func stopAnimating() {
-        gradientLayer.removeAnimation(forKey: Self.animationKey)
-        gradientLayer.locations = Self.restingLocations
-    }
-
-    private func updateTextLayer() {
-        textMaskLayer.string = stringValue
-        textMaskLayer.font = CTFontCreateWithName(font.fontName as CFString, font.pointSize, nil)
-        textMaskLayer.fontSize = font.pointSize
-        invalidateIntrinsicContentSize()
-        needsLayout = true
-    }
-
-    private func updateLayerScale() {
-        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        gradientLayer.contentsScale = scale
-        textMaskLayer.contentsScale = scale
-    }
-
-    private func updateAppearance() {
-        let appearance = effectiveAppearance
-        gradientLayer.colors = [
-            AdaptiveChrome.resolvedCGColor(NSColor.labelColor.withAlphaComponent(0.82), for: appearance),
-            AdaptiveChrome.resolvedCGColor(NSColor.systemCyan.withAlphaComponent(0.98), for: appearance),
-            AdaptiveChrome.resolvedCGColor(NSColor.systemPink.withAlphaComponent(0.98), for: appearance),
-            AdaptiveChrome.resolvedCGColor(NSColor.systemYellow.withAlphaComponent(0.96), for: appearance),
-            AdaptiveChrome.resolvedCGColor(NSColor.labelColor.withAlphaComponent(0.86), for: appearance),
-        ]
+        indicator.stopAnimation(nil)
+        indicator.isHidden = true
     }
 }
 
@@ -907,7 +808,7 @@ private final class TranslationResultView: NSView {
 
     let kind: TranslationProviderKind
 
-    private let loadingStatusLabel = AnimatedGradientTextLabel()
+    private let loadingStatusLabel = TranslationProgressLabel()
     private let errorStatusLabel = NSTextField(labelWithString: "")
     private let contentStack = NSStackView()
     private let textContainer = NSView()
@@ -1327,7 +1228,7 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
     private let panelWidth: CGFloat
     private let mode: Mode
 
-    private let padding: CGFloat = 14
+    private let padding: CGFloat = 16
     private var panelWidthConstraint: NSLayoutConstraint?
     private var documentWidthConstraint: NSLayoutConstraint?
     private var contentStack: NSStackView!
@@ -1338,7 +1239,7 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
     private var ocrTextView: PanelTextView?
     private var ocrCopyButton: NSButton?
     private var translationTitleLabel: NSTextField?
-    private var dictionaryTitleLabel: AnimatedGradientTextLabel?
+    private var dictionaryTitleLabel: TranslationProgressLabel?
     private var translationPlaceholderLabel: NSTextField?
     private var translationResultsStack: NSStackView?
     private var translationResultViews: [TranslationProviderKind: TranslationResultView] = [:]
@@ -1472,7 +1373,7 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
     // MARK: UI
 
     private func buildUI() {
-        let root = AdaptiveChromeSurfaceView(style: .panel, cornerRadius: 12, borderWidth: 1)
+        let root = AdaptiveChromeSurfaceView(style: .panel, cornerRadius: 22)
         contentView = root
         let panelWidthConstraint = root.widthAnchor.constraint(equalToConstant: panelWidth)
         panelWidthConstraint.isActive = true
@@ -1481,9 +1382,10 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
         let scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = false
+        scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
         scrollView.borderType = .noBorder
         root.addSubview(scrollView)
         clipView = scrollView.contentView
@@ -1535,10 +1437,10 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
             contentStack.leadingAnchor.constraint(equalTo: docView.leadingAnchor),
             contentStack.trailingAnchor.constraint(equalTo: docView.trailingAnchor),
 
-            pinButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
-            pinButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -8),
-            pinButton.widthAnchor.constraint(equalToConstant: 24),
-            pinButton.heightAnchor.constraint(equalToConstant: 24),
+            pinButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 10),
+            pinButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10),
+            pinButton.widthAnchor.constraint(equalToConstant: 28),
+            pinButton.heightAnchor.constraint(equalToConstant: 28),
         ])
 
         switch mode {
@@ -1645,7 +1547,7 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         translationTitleLabel = title
 
-        let dictionaryTitle = AnimatedGradientTextLabel()
+        let dictionaryTitle = TranslationProgressLabel()
         dictionaryTitle.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
         dictionaryTitle.isHidden = true
         dictionaryTitleLabel = dictionaryTitle
@@ -2376,7 +2278,7 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
     // MARK: Shared builders
 
     private func makeCard() -> NSView {
-        let v = AdaptiveChromeSurfaceView(style: .card, cornerRadius: 10, borderWidth: 1)
+        let v = AdaptiveChromeSurfaceView(style: .card, cornerRadius: 12)
         v.translatesAutoresizingMaskIntoConstraints = false
         return v
     }
@@ -2413,8 +2315,6 @@ private final class LanguagePickerView: NSView {
 
     init(selected: TranslationLanguage?, onSelect: @escaping (TranslationLanguage?) -> Void) {
         super.init(frame: NSRect(x: 0, y: 0, width: 220, height: 1))
-        wantsLayer = true
-        applyAppearance()
 
         let stack = NSStackView()
         stack.orientation = .vertical
@@ -2457,18 +2357,6 @@ private final class LanguagePickerView: NSView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        applyAppearance()
-    }
-
-    private func applyAppearance() {
-        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.popoverBackground,
-            for: effectiveAppearance
-        )
-    }
 }
 
 private final class ClosureSleeve: NSObject {
@@ -2512,7 +2400,7 @@ func configureIconButton(_ button: NSButton, symbolName: String, label: String) 
     button.imagePosition = .imageOnly
     button.imageScaling = .scaleProportionallyDown
     button.isBordered = false
-    button.bezelStyle = .regularSquare
+    button.bezelStyle = .accessoryBarAction
     button.controlSize = .small
     button.contentTintColor = .secondaryLabelColor
     button.toolTip = label

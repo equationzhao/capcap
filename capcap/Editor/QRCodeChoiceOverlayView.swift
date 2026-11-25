@@ -79,12 +79,19 @@ private final class QRCodeChoiceButton: NSButton {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         title = ""
-        isBordered = false
-        bezelStyle = .regularSquare
-        setButtonType(.momentaryChange)
+        if #available(macOS 26.0, *) {
+            bezelStyle = .glass
+        } else {
+            bezelStyle = .rounded
+        }
+        image = NSImage(systemSymbolName: "arrow.right", accessibilityDescription: L10n.copyQRCodeContent)?
+            .withSymbolConfiguration(.init(pointSize: 22, weight: .semibold))
+        imagePosition = .imageOnly
+        contentTintColor = .controlAccentColor
+        setAccessibilityLabel(L10n.copyQRCodeContent)
+        setButtonType(.momentaryPushIn)
         target = self
         action = #selector(clicked)
-        wantsLayer = true
     }
 
     required init?(coder: NSCoder) {
@@ -92,49 +99,6 @@ private final class QRCodeChoiceButton: NSButton {
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let outerRect = bounds.insetBy(dx: 2, dy: 2)
-        let innerRect = bounds.insetBy(dx: 8, dy: 8)
-
-        NSGraphicsContext.saveGraphicsState()
-        let glow = NSShadow()
-        glow.shadowBlurRadius = 12
-        glow.shadowColor = NSColor.systemGreen.withAlphaComponent(0.35)
-        glow.shadowOffset = .zero
-        glow.set()
-        NSColor.systemGreen.withAlphaComponent(0.18).setFill()
-        NSBezierPath(ovalIn: outerRect).fill()
-        NSGraphicsContext.restoreGraphicsState()
-
-        let fillColor = isHighlighted
-            ? NSColor(red: 0.02, green: 0.58, blue: 0.22, alpha: 1.0)
-            : NSColor(red: 0.02, green: 0.78, blue: 0.32, alpha: 1.0)
-        fillColor.setFill()
-        NSBezierPath(ovalIn: innerRect).fill()
-
-        NSColor.white.withAlphaComponent(0.72).setStroke()
-        let ring = NSBezierPath(ovalIn: innerRect.insetBy(dx: 1.5, dy: 1.5))
-        ring.lineWidth = 1.5
-        ring.stroke()
-
-        context.saveGState()
-        context.setStrokeColor(NSColor.white.cgColor)
-        context.setLineWidth(5)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
-
-        let midX = bounds.midX
-        let midY = bounds.midY
-        context.move(to: CGPoint(x: midX - 15, y: midY))
-        context.addLine(to: CGPoint(x: midX + 13, y: midY))
-        context.move(to: CGPoint(x: midX + 2, y: midY + 11))
-        context.addLine(to: CGPoint(x: midX + 13, y: midY))
-        context.addLine(to: CGPoint(x: midX + 2, y: midY - 11))
-        context.strokePath()
-        context.restoreGState()
-    }
 
     @objc private func clicked() {
         onClick?()

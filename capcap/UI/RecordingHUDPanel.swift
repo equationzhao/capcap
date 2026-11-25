@@ -57,11 +57,12 @@ final class RecordingHUDPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         containerView.panel = self
-        containerView.wantsLayer = true
-        containerView.layer?.cornerRadius = FloatingControlChrome.cornerRadius
-        containerView.layer?.borderWidth = FloatingControlChrome.borderWidth
-        containerView.applyAppearance()
-        contentView = containerView
+        contentView = FloatingGlassView(
+            frame: NSRect(origin: .zero, size: initialSize),
+            content: containerView,
+            cornerRadius: FloatingControlChrome.cornerRadius,
+            interactive: true
+        )
 
         setupControls()
         layoutControls()
@@ -79,7 +80,6 @@ final class RecordingHUDPanel: NSPanel {
     func setPaused(_ paused: Bool) {
         isPaused = paused
         recordDot.textColor = paused ? .systemOrange : .systemRed
-        pauseButton.toolTip = paused ? L10n.recordingResume : L10n.recordingPause
         updatePauseIcon()
     }
 
@@ -105,18 +105,19 @@ final class RecordingHUDPanel: NSPanel {
     }
 
     private func setupControls() {
-        stopButton.bezelStyle = .regularSquare
+        stopButton.bezelStyle = .accessoryBarAction
         stopButton.isBordered = false
         stopButton.imageScaling = .scaleProportionallyDown
         stopButton.image = NSImage(systemSymbolName: "stop.fill", accessibilityDescription: L10n.recordingStop)?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold))
-        stopButton.contentTintColor = .labelColor
+        stopButton.hasDestructiveAction = true
+        stopButton.contentTintColor = .systemRed
         stopButton.toolTip = L10n.recordingStop
         stopButton.target = self
         stopButton.action = #selector(stopClicked)
         containerView.addSubview(stopButton)
 
-        pauseButton.bezelStyle = .regularSquare
+        pauseButton.bezelStyle = .accessoryBarAction
         pauseButton.isBordered = false
         pauseButton.imageScaling = .scaleProportionallyDown
         pauseButton.contentTintColor = .labelColor
@@ -161,7 +162,7 @@ final class RecordingHUDPanel: NSPanel {
     }
 
     private func setupAudioButton(_ button: NSButton, symbol: String, action: Selector) {
-        button.bezelStyle = .regularSquare
+        button.bezelStyle = .accessoryBarAction
         button.isBordered = false
         button.imageScaling = .scaleProportionallyDown
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
@@ -178,9 +179,10 @@ final class RecordingHUDPanel: NSPanel {
         onTooltip: String,
         offTooltip: String
     ) {
-        button.contentTintColor = enabled ? .systemBlue : .tertiaryLabelColor
-        button.toolTip = enabled ? onTooltip : offTooltip
-        button.alphaValue = enabled ? 1.0 : 0.55   // dim when off
+        let label = enabled ? onTooltip : offTooltip
+        button.contentTintColor = enabled ? .controlAccentColor : .secondaryLabelColor
+        button.toolTip = label
+        button.setAccessibilityLabel(label)
     }
 
     private func layoutControls() {
@@ -205,7 +207,10 @@ final class RecordingHUDPanel: NSPanel {
 
     private func updatePauseIcon() {
         let symbol = isPaused ? "play.fill" : "pause.fill"
-        pauseButton.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+        let label = isPaused ? L10n.recordingResume : L10n.recordingPause
+        pauseButton.toolTip = label
+        pauseButton.setAccessibilityLabel(label)
+        pauseButton.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold))
     }
 
@@ -292,22 +297,6 @@ private final class RecordingHUDContainerView: NSView {
     private var dragOffset: NSPoint = .zero
     private var isDragging = false
     private var trackingArea: NSTrackingArea?
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        applyAppearance()
-    }
-
-    func applyAppearance() {
-        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.floatingBackground,
-            for: effectiveAppearance
-        )
-        layer?.borderColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.border,
-            for: effectiveAppearance
-        )
-    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()

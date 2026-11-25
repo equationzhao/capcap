@@ -69,6 +69,7 @@
 "pinToolbarDrag" = "Kéo ảnh đã ghim";
 "pinToolbarEdit" = "Sửa ảnh đã ghim";
 "pinToolbarEditText" = "Sửa văn bản";
+"pinToolbarCloseText" = "Đóng";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "Chỉnh sửa ảnh đã chọn";
@@ -772,3 +773,7 @@
 "historyFilePreviewRetry" = "Kiểm tra lại";
 
 "historyFilePreviewUnavailable" = "Không thể xem trước tệp này";
+"editorStrokeWidth" = "Độ dày nét";
+"editorFontSize" = "Cỡ chữ";
+"ocrPinPanel" = "Ghim bảng";
+"ocrUnpinPanel" = "Bỏ ghim bảng";

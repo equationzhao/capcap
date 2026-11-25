@@ -188,6 +188,7 @@ enum L10n {
     static var pinToolbarCopy: String { s("pinToolbarCopy") }
     static var pinToolbarDrag: String { s("pinToolbarDrag") }
     static var pinToolbarEdit: String { s("pinToolbarEdit") }
+    static var pinToolbarCloseText: String { s("pinToolbarCloseText") }
     static var pinToolbarEditText: String { s("pinToolbarEditText") }
 
     // Image-edit shortcuts
@@ -466,6 +467,10 @@ enum L10n {
     static var spotlightBackgroundBrightness: String { s("spotlightBackgroundBrightness") }
     static var tipMosaic: String { s("tipMosaic") }
     static var mosaicGranularity: String { s("mosaicGranularity") }
+    static var editorStrokeWidth: String { s("editorStrokeWidth") }
+    static var editorFontSize: String { s("editorFontSize") }
+    static var ocrPinPanel: String { s("ocrPinPanel") }
+    static var ocrUnpinPanel: String { s("ocrUnpinPanel") }
     static var mosaicBlur: String { s("mosaicBlur") }
     static var mosaicBlurAmount: String { s("mosaicBlurAmount") }
     static var tipEraser: String { s("tipEraser") }

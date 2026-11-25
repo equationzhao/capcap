@@ -69,6 +69,7 @@
 "pinToolbarDrag" = "고정 이미지 드래그";
 "pinToolbarEdit" = "고정 이미지 편집";
 "pinToolbarEditText" = "텍스트 편집";
+"pinToolbarCloseText" = "닫기";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "선택 이미지 편집";
@@ -772,3 +773,7 @@
 "historyFilePreviewRetry" = "다시 확인";
 
 "historyFilePreviewUnavailable" = "이 파일을 미리 볼 수 없음";
+"editorStrokeWidth" = "선 두께";
+"editorFontSize" = "글꼴 크기";
+"ocrPinPanel" = "패널 고정";
+"ocrUnpinPanel" = "패널 고정 해제";

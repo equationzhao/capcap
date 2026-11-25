@@ -69,6 +69,7 @@
 "pinToolbarDrag" = "拖曳釘圖";
 "pinToolbarEdit" = "編輯釘圖";
 "pinToolbarEditText" = "編輯文字";
+"pinToolbarCloseText" = "關閉";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "編輯所選圖片";
@@ -772,3 +773,7 @@
 "historyFilePreviewRetry" = "重新檢查";
 
 "historyFilePreviewUnavailable" = "無法預覽此檔案";
+"editorStrokeWidth" = "描邊寬度";
+"editorFontSize" = "字體大小";
+"ocrPinPanel" = "固定面板";
+"ocrUnpinPanel" = "取消固定面板";

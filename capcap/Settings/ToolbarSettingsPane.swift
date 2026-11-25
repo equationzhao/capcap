@@ -83,11 +83,11 @@ final class ToolbarSettingsPane: NSView {
         addSubview(stack)
 
         // Preview card.
-        let previewCard = Self.makeCard()
+        let previewCard = SettingsGroupView()
         preview.translatesAutoresizingMaskIntoConstraints = false
         preview.setContentCompressionResistancePriority(.required, for: .vertical)
         preview.setContentHuggingPriority(.required, for: .vertical)
-        previewCard.addSubview(preview)
+        previewCard.content.addSubview(preview)
         previewHeightConstraint = preview.heightAnchor.constraint(equalToConstant: preview.preferredHeight)
         NSLayoutConstraint.activate([
             preview.topAnchor.constraint(equalTo: previewCard.topAnchor, constant: 14),
@@ -116,13 +116,13 @@ final class ToolbarSettingsPane: NSView {
             }
         }
 
-        let sectionsCard = Self.makeCard()
+        let sectionsCard = SettingsGroupView()
         let sectionsStack = NSStackView()
         sectionsStack.orientation = .vertical
         sectionsStack.alignment = .leading
         sectionsStack.spacing = 8
         sectionsStack.translatesAutoresizingMaskIntoConstraints = false
-        sectionsCard.addSubview(sectionsStack)
+        sectionsCard.content.addSubview(sectionsStack)
         NSLayoutConstraint.activate([
             sectionsStack.topAnchor.constraint(equalTo: sectionsCard.topAnchor, constant: 16),
             sectionsStack.leadingAnchor.constraint(equalTo: sectionsCard.leadingAnchor, constant: 16),
@@ -404,21 +404,10 @@ final class ToolbarSettingsPane: NSView {
 
     // MARK: - Shared builders
 
-    private static func makeCard() -> NSView {
-        let card = NSView()
-        card.wantsLayer = true
-        card.layer?.cornerRadius = 12
-        card.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.04).cgColor
-        card.layer?.borderWidth = 1
-        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        card.translatesAutoresizingMaskIntoConstraints = false
-        return card
-    }
-
     private static func sectionTitleLabel() -> NSTextField {
         let label = NSTextField(labelWithString: "")
         label.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        label.textColor = NSColor.white.withAlphaComponent(0.92)
+        label.textColor = .labelColor
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }
@@ -426,7 +415,7 @@ final class ToolbarSettingsPane: NSView {
     private static func hintLabel() -> NSTextField {
         let label = NSTextField(labelWithString: "")
         label.font = NSFont.systemFont(ofSize: 11)
-        label.textColor = NSColor.white.withAlphaComponent(0.45)
+        label.textColor = .secondaryLabelColor
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }

@@ -64,7 +64,11 @@ final class CountdownWindow: NSPanel {
         ignoresMouseEvents = true
         collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
 
-        contentView = plate
+        contentView = FloatingGlassView(
+            frame: NSRect(origin: .zero, size: rect.size),
+            content: plate,
+            cornerRadius: 40
+        )
         plate.setDigit(remaining, animated: false)
     }
 
@@ -72,7 +76,7 @@ final class CountdownWindow: NSPanel {
         alphaValue = 0
         orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.18
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.18
             self.animator().alphaValue = 1.0
         }
 
@@ -123,7 +127,7 @@ final class CountdownWindow: NSPanel {
         didEnd = true
         teardown()
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.15
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.15
             self.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
             guard let self else { return }
@@ -158,12 +162,6 @@ private final class CountdownPlateView: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 28
-        layer?.cornerCurve = .continuous
-        layer?.borderWidth = 1
-        applyAppearance()
-
         digitLabel.translatesAutoresizingMaskIntoConstraints = false
         digitLabel.alignment = .center
         digitLabel.textColor = .labelColor
@@ -183,26 +181,9 @@ private final class CountdownPlateView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        applyAppearance()
-    }
-
-    private func applyAppearance() {
-        layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.floatingBackground,
-            for: effectiveAppearance
-        )
-        layer?.borderColor = AdaptiveChrome.resolvedCGColor(
-            AdaptiveChrome.border,
-            for: effectiveAppearance
-        )
-        digitLabel.textColor = .labelColor
-    }
-
     func setDigit(_ value: Int, animated: Bool) {
         let newText = "\(value)"
-        guard animated else {
+        guard animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             digitLabel.stringValue = newText
             return
         }

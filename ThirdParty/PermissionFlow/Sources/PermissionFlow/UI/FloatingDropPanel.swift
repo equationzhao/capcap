@@ -55,26 +55,31 @@ final class FloatingDropPanel: NSPanel {
         hidesOnDeactivate = false
         animationBehavior = .utilityWindow
 
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
-        // Prevent the hosting view from pushing its SwiftUI layout size back
-        // onto the enclosing NSWindow. `NSHostingView.sizingOptions` defaults
-        // to `[.intrinsicContentSize]` on macOS 13.3+, which makes the host
-        // re-advertise the SwiftUI root view's intrinsic size to the window
-        // on every layout pass. For the panel content (ultraThinMaterial
-        // background + `.fixedSize(vertical: true)` + a markdown-wrapped
-        // header `AttributedString`), that intrinsic value diverges from the
-        // `sizingView.fittingSize` that `measuredPanelHeight` uses — so the
-        // window auto-grows well past the content-size we set, and every
-        // subsequent `setFrame(...)` from `snap(to:)` is reverted on the
-        // next layout tick, leaving the panel stuck off-screen.
-        //
-        // Opting out of `.intrinsicContentSize` makes the existing
-        // `measuredPanelHeight` → `setContentSize` / `snap(to:)` pipeline the
-        // single source of truth for panel geometry.
+        // Measure the panel with the separate sizing view so the host's intrinsic
+        // size cannot override the frame used to follow System Settings.
         if #available(macOS 13.3, *) {
             hostingView.sizingOptions = []
         }
-        contentView = hostingView
+        hostingView.autoresizingMask = [.width, .height]
+        let surfaceFrame = NSRect(origin: .zero, size: NSSize(width: initialPanelWidth, height: minimumPanelHeight))
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectView(frame: surfaceFrame)
+            glass.cornerRadius = 22
+            glass.contentView = hostingView
+            contentView = glass
+        } else {
+            let material = NSVisualEffectView(frame: surfaceFrame)
+            material.material = .popover
+            material.blendingMode = .behindWindow
+            material.state = .active
+            material.wantsLayer = true
+            material.layer?.cornerRadius = 22
+            material.layer?.cornerCurve = .continuous
+            material.layer?.masksToBounds = true
+            material.addSubview(hostingView)
+            contentView = material
+        }
+        hostingView.frame = surfaceFrame
         setContentSize(CGSize(width: initialPanelWidth, height: measuredPanelHeight(for: initialPanelWidth)))
     }
 
@@ -140,7 +145,7 @@ final class FloatingDropPanel: NSPanel {
         stopLaunchAnimation()
         let targetFrame = targetFrame(for: settingsFrame)
 
-        guard sourceFrameInScreen.isEmpty == false else {
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion, !sourceFrameInScreen.isEmpty else {
             isAnimatingLaunch = false
             alphaValue = 1
             setFrame(targetFrame, display: false)

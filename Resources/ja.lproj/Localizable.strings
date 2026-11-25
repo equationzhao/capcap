@@ -69,6 +69,7 @@
 "pinToolbarDrag" = "ピン留め画像をドラッグ";
 "pinToolbarEdit" = "ピン留め画像を編集";
 "pinToolbarEditText" = "テキストを編集";
+"pinToolbarCloseText" = "閉じる";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "選択画像を編集";
@@ -772,3 +773,7 @@
 "historyFilePreviewRetry" = "再確認";
 
 "historyFilePreviewUnavailable" = "このファイルはプレビューできません";
+"editorStrokeWidth" = "線の太さ";
+"editorFontSize" = "フォントサイズ";
+"ocrPinPanel" = "パネルを固定";
+"ocrUnpinPanel" = "パネルの固定を解除";

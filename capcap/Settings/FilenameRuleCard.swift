@@ -1,6 +1,6 @@
 import AppKit
 
-final class FilenameRuleCard: NSView, NSTextFieldDelegate {
+final class FilenameRuleCard: SettingsGroupView, NSTextFieldDelegate {
     private enum Preset: Int, CaseIterable {
         case custom
         case short
@@ -59,15 +59,8 @@ final class FilenameRuleCard: NSView, NSTextFieldDelegate {
     private var imageCursorLocation = 0
     private var recordingCursorLocation = 0
 
-    init() {
-        super.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = true
-        layer?.cornerRadius = 12
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.04).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        layer?.borderWidth = 1
+    override init() {
+        super.init()
 
         imageField.stringValue = Defaults.imageFilenameTemplate
         recordingField.stringValue = Defaults.recordingFilenameTemplate
@@ -125,7 +118,7 @@ final class FilenameRuleCard: NSView, NSTextFieldDelegate {
         inner.alignment = .leading
         inner.spacing = 10
         inner.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(inner)
+        content.addSubview(inner)
 
         configurePrimaryLabel(titleLabel)
         configureSecondaryLabel(subtitleLabel, monospaced: false)
@@ -179,16 +172,16 @@ final class FilenameRuleCard: NSView, NSTextFieldDelegate {
         variablesSection.widthAnchor.constraint(equalTo: inner.widthAnchor).isActive = true
 
         NSLayoutConstraint.activate([
-            inner.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            inner.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            inner.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
-            inner.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            inner.topAnchor.constraint(equalTo: content.topAnchor, constant: 12),
+            inner.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 14),
+            inner.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -14),
+            inner.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -12),
         ])
     }
 
     private func configurePrimaryLabel(_ label: NSTextField) {
         label.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        label.textColor = NSColor.white.withAlphaComponent(0.94)
+        label.textColor = .labelColor
         label.alignment = .left
     }
 
@@ -196,14 +189,13 @@ final class FilenameRuleCard: NSView, NSTextFieldDelegate {
         label.font = monospaced
             ? NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
             : NSFont.systemFont(ofSize: 11)
-        label.textColor = NSColor.white.withAlphaComponent(0.58)
+        label.textColor = .secondaryLabelColor
         label.alignment = .left
     }
 
     private func rowDivider() -> NSView {
-        let v = NSView()
-        v.wantsLayer = true
-        v.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
+        let v = NSBox()
+        v.boxType = .separator
         v.translatesAutoresizingMaskIntoConstraints = false
         v.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return v

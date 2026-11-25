@@ -499,7 +499,6 @@ class EditWindowController {
             let tv = ToolbarView(items: layout.primary, orientation: .horizontal)
             wireToolbarCallbacks(tv)
             tv.frame = toolbarRect(in: hostSelectionView.bounds, size: tv.preferredSize)
-            styleFloatingHUD(tv)
             self.toolbarView = tv
             hostSelectionView.addSubview(tv)
         }
@@ -512,7 +511,6 @@ class EditWindowController {
                 size: sv.preferredSize,
                 avoiding: toolbarView?.frame
             )
-            styleFloatingHUD(sv)
             self.sideToolbarView = sv
             hostSelectionView.addSubview(sv)
         }
@@ -1097,7 +1095,6 @@ class EditWindowController {
         view.onShapeFillModeChanged = onShapeFillMode
         view.onShapeStrokeStyleChanged = onShapeStrokeStyle
         view.onArrowStyleChanged = onArrowStyle
-        styleFloatingHUD(view)
         hostSelectionView.addSubview(view)
         subToolbarView = view
     }
@@ -1167,7 +1164,6 @@ class EditWindowController {
         view.onFontMenuClosed = { [weak self] in
             self?.bringEditorToFront()
         }
-        styleFloatingHUD(view)
         hostSelectionView.addSubview(view)
         subToolbarView = view
     }
@@ -1190,7 +1186,6 @@ class EditWindowController {
         view.slider.onEditingEnded = { [weak canvasView] in
             canvasView?.endSpotlightBrightnessAdjustment()
         }
-        styleFloatingHUD(view)
         hostSelectionView.addSubview(view)
         subToolbarView = view
     }
@@ -1238,7 +1233,6 @@ class EditWindowController {
             self?.canvasView?.commitSelectionAdjustment()
             self?.bringEditorToFront()
         }
-        styleFloatingHUD(view)
         hostSelectionView.addSubview(view)
         subToolbarView = view
     }
@@ -1269,7 +1263,6 @@ class EditWindowController {
         view.onMoreRequested = { [weak self, weak view] anchor in
             self?.showEmojiPicker(anchoredTo: anchor, subToolbar: view)
         }
-        styleFloatingHUD(view)
         hostSelectionView.addSubview(view)
         subToolbarView = view
     }
@@ -1448,7 +1441,6 @@ class EditWindowController {
             in: hostSelectionView.bounds, offset: isBeautifyActive ? 40 : 0
         ))
         view.onRotate = { [weak self] clockwise in self?.rotateImage(clockwise: clockwise) }
-        styleFloatingHUD(view)
         subToolbarView = view
         hostSelectionView.addSubview(view)
         toolbars.forEach { $0.setActive(true, for: .rotate) }
@@ -1698,7 +1690,6 @@ class EditWindowController {
         view.onShadowSizeEditingEnded = { [weak self] in
             self?.finishBeautifyShadowSizeAdjustment()
         }
-        styleFloatingHUD(view)
         hostSelectionView.addSubview(view)
         beautifySubToolbarView = view
     }
@@ -3236,14 +3227,6 @@ class EditWindowController {
     private func clampedX(_ proposedX: CGFloat, width: CGFloat, in bounds: NSRect, margin: CGFloat) -> CGFloat {
         max(margin, min(bounds.maxX - width - margin, proposedX))
     }
-
-    private func styleFloatingHUD(_ view: NSView) {
-        view.wantsLayer = true
-        view.layer?.shadowColor = NSColor.black.cgColor
-        view.layer?.shadowOpacity = 0.25
-        view.layer?.shadowRadius = 10
-        view.layer?.shadowOffset = CGSize(width: 0, height: -2)
-    }
 }
 
 // MARK: - Main Toolbar View
@@ -3321,11 +3304,10 @@ final class EditorScrollView: NSScrollView {
 /// A row (horizontal) or column (vertical) of editor buttons built from a
 /// `[ToolbarItemID]`. Both the primary toolbar and the side toolbar are
 /// instances of this class — only `orientation` and the item list differ.
-class ToolbarView: NSView {
+class ToolbarView: FloatingToolbarView {
     enum Orientation { case horizontal, vertical }
 
-    /// Button run geometry. `preferredSize` derives the capsule size from
-    /// these so the dark background always wraps the buttons exactly.
+    /// Button run geometry used to size the glass capsule.
     static let buttonSize: CGFloat = 40
     static let symbolPointSize: CGFloat = 18
     static let buttonSpacing: CGFloat = 6
@@ -3339,6 +3321,10 @@ class ToolbarView: NSView {
 
     /// Size that fits the current items in the current orientation.
     var preferredSize: NSSize {
+        Self.size(for: items, orientation: orientation)
+    }
+
+    private static func size(for items: [ToolbarItemID], orientation: Orientation) -> NSSize {
         let n = items.count
         let run = CGFloat(n) * Self.buttonSize
             + CGFloat(max(0, n - 1)) * Self.buttonSpacing
@@ -3365,8 +3351,8 @@ class ToolbarView: NSView {
     init(items: [ToolbarItemID], orientation: Orientation) {
         self.items = items
         self.orientation = orientation
-        super.init(frame: NSRect(origin: .zero, size: .zero))
-        setFrameSize(preferredSize)
+        let size = Self.size(for: items, orientation: orientation)
+        super.init(frame: NSRect(origin: .zero, size: size), cornerRadius: min(size.width, size.height) / 2)
         setupButtons()
     }
 
@@ -3429,7 +3415,7 @@ class ToolbarView: NSView {
             }
             let view = makeButton(for: id, index: index, frame: frame)
             buttons[id] = view
-            addSubview(view)
+            controls.addSubview(view)
         }
     }
 
@@ -3467,11 +3453,6 @@ class ToolbarView: NSView {
         return btn
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 
     @objc private func buttonTapped(_ sender: ToolButton) {
         guard sender.tag >= 0, sender.tag < items.count else { return }
@@ -3485,10 +3466,13 @@ class ToolbarView: NSView {
 
 class ToolButton: NSButton {
     var isSelected = false {
-        didSet { needsDisplay = true }
+        didSet {
+            state = isSelected ? .on : .off
+            needsDisplay = true
+        }
     }
 
-    /// Text shown by the dark hover tooltip. nil = no tip.
+    /// Text shown by the hover tooltip. nil = no tip.
     var hoverTip: String?
 
     private let normalColor: NSColor
@@ -3564,8 +3548,10 @@ class ToolButton: NSButton {
     override func draw(_ dirtyRect: NSRect) {
         if isSelected {
             contentTintColor = selectedColor
-            let bgPath = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 6, yRadius: 6)
-            AdaptiveChrome.selectedFill.setFill()
+            let inset = bounds.insetBy(dx: 3, dy: 3)
+            let radius = min(inset.width, inset.height) / 2
+            let bgPath = NSBezierPath(roundedRect: inset, xRadius: radius, yRadius: radius)
+            NSColor.controlAccentColor.withAlphaComponent(0.16).setFill()
             bgPath.fill()
         } else {
             contentTintColor = normalColor
@@ -3745,13 +3731,13 @@ private final class ScrollCaptureHintWindow: NSPanel {
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let container = AdaptiveChromeSurfaceView(style: .floating, cornerRadius: 8)
+        let container = FloatingGlassView(cornerRadius: 16)
 
         label.stringValue = text
         label.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         label.textColor = .labelColor
         label.alignment = .center
-        container.addSubview(label)
+        container.content.addSubview(label)
         contentView = container
     }
 
@@ -3817,12 +3803,12 @@ private final class ScrollCaptureControlWindow: NSPanel {
     }
 }
 
-private final class ScrollCaptureControlView: NSView {
+private final class ScrollCaptureControlView: FloatingToolbarView {
     private let onTap: () -> Void
 
     init(frame: NSRect, onTap: @escaping () -> Void) {
         self.onTap = onTap
-        super.init(frame: frame)
+        super.init(frame: frame, cornerRadius: frame.height / 2, blendingMode: .behindWindow)
         setup()
     }
 
@@ -3837,31 +3823,26 @@ private final class ScrollCaptureControlView: NSView {
             frame: bounds.insetBy(dx: 6, dy: 6),
             symbolName: ToolbarItemID.scrollCapture.symbolName,
             normalColor: .labelColor,
-            selectedColor: accentGreen,
+            selectedColor: .controlAccentColor,
             iconImage: ToolbarItemID.scrollCapture.iconImage(pointSize: 14)
         )
         button.isSelected = true
         button.target = self
         button.action = #selector(buttonTapped)
-        addSubview(button)
+        controls.addSubview(button)
     }
 
     @objc private func buttonTapped() {
         onTap()
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 }
 
-private final class RotationSubToolbar: NSView {
+private final class RotationSubToolbar: FloatingToolbarView {
     var onRotate: ((Bool) -> Void)?
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
+    init(frame frameRect: NSRect) {
+        super.init(frame: frameRect, cornerRadius: frameRect.height / 2)
         for clockwise in [false, true] {
             let button = ToolButton(
                 frame: NSRect(x: clockwise ? 54 : 10, y: 4, width: 28, height: 28),
@@ -3872,18 +3853,13 @@ private final class RotationSubToolbar: NSView {
             button.setAccessibilityLabel(button.hoverTip)
             button.target = self
             button.action = clockwise ? #selector(rotateRight) : #selector(rotateLeft)
-            addSubview(button)
+            controls.addSubview(button)
         }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 
     @objc private func rotateLeft() { onRotate?(false) }
     @objc private func rotateRight() { onRotate?(true) }
@@ -3933,12 +3909,12 @@ private final class ScrollCropControlWindow: NSPanel {
     }
 }
 
-private final class ScrollCropControlView: NSView {
+private final class ScrollCropControlView: FloatingToolbarView {
     private let onConfirm: () -> Void
 
     init(frame: NSRect, onConfirm: @escaping () -> Void) {
         self.onConfirm = onConfirm
-        super.init(frame: frame)
+        super.init(frame: frame, cornerRadius: frame.height / 2, blendingMode: .behindWindow)
         setup()
     }
 
@@ -3952,23 +3928,17 @@ private final class ScrollCropControlView: NSView {
         let button = ToolButton(
             frame: bounds.insetBy(dx: 6, dy: 6),
             symbolName: "checkmark",
-            normalColor: accentGreen,
-            selectedColor: accentGreen
+            normalColor: .controlAccentColor,
+            selectedColor: .controlAccentColor
         )
         button.hoverTip = L10n.tipScrollCropConfirm
         button.target = self
         button.action = #selector(confirmTapped)
-        addSubview(button)
+        controls.addSubview(button)
     }
 
     @objc private func confirmTapped() {
         onConfirm()
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
     }
 }
 
@@ -4002,19 +3972,13 @@ private final class ScrollPreviewWindow: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         let containerRect = NSRect(origin: .zero, size: initialRect.size)
-        let container = AdaptiveChromeSurfaceView(
-            style: .floating,
-            cornerRadius: 8,
-            borderWidth: 0.5
-        )
-        container.frame = containerRect
-        container.autoresizingMask = [.width, .height]
+        let container = FloatingGlassView(frame: containerRect, cornerRadius: 12)
 
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.imageAlignment = .alignTop
         imageView.frame = containerRect.insetBy(dx: contentInset, dy: contentInset)
         imageView.autoresizingMask = [.width, .height]
-        container.addSubview(imageView)
+        container.content.addSubview(imageView)
 
         contentView = container
     }
@@ -4049,7 +4013,7 @@ private final class ScrollPreviewWindow: NSPanel {
 
 // MARK: - Emoji Sub-toolbar
 
-private final class EmojiSubToolbar: NSView {
+private final class EmojiSubToolbar: FloatingToolbarView {
     static let preferredVisibleWidth: CGFloat = horizontalPad * 2
         + moreButtonSize
         + moreButtonGap
@@ -4082,7 +4046,7 @@ private final class EmojiSubToolbar: NSView {
     init(frame: NSRect, emojis: [String], selectedEmoji: String?) {
         self.emojis = emojis
         self.selectedEmoji = selectedEmoji
-        super.init(frame: frame)
+        super.init(frame: frame, cornerRadius: frame.height / 2)
         setup()
     }
 
@@ -4095,7 +4059,7 @@ private final class EmojiSubToolbar: NSView {
     private func setup() {
         moreButton.target = self
         moreButton.action = #selector(showMoreEmojiPicker)
-        addSubview(moreButton)
+        controls.addSubview(moreButton)
 
         rebuildEmojiViews()
     }
@@ -4139,7 +4103,7 @@ private final class EmojiSubToolbar: NSView {
             item.onSelect = { [weak self] emoji in
                 self?.onEmojiSelected?(emoji)
             }
-            addSubview(item)
+            controls.addSubview(item)
             emojiViews.append(item)
         }
 
@@ -4156,11 +4120,6 @@ private final class EmojiSubToolbar: NSView {
         onMoreRequested?(moreButton)
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 }
 
 private final class EmojiPickerView: NSView {
@@ -4195,8 +4154,6 @@ private final class EmojiPickerView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     private func setup() {
-        wantsLayer = true
-
         let gridWidth = CGFloat(Self.gridColumns) * Self.gridItemSize
             + CGFloat(Self.gridColumns - 1) * Self.gridColumnGap
         let gridLeft = (bounds.width - gridWidth) / 2
@@ -4236,17 +4193,6 @@ private final class EmojiPickerView: NSView {
         for view in choiceViews {
             view.isSelected = view.emoji == selectedEmoji
         }
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let rect = bounds.insetBy(dx: 1, dy: 1)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 14, yRadius: 14)
-        AdaptiveChrome.popoverBackground.setFill()
-        path.fill()
-
-        AdaptiveChrome.border.setStroke()
-        path.lineWidth = 1
-        path.stroke()
     }
 }
 
@@ -4423,7 +4369,7 @@ private enum ShapeStrokePreviewShape {
     case ellipse
 }
 
-private class ColorSizeSubToolbar: NSView {
+private class ColorSizeSubToolbar: FloatingToolbarView {
     var currentColor: NSColor = EditorStyleDefaults.primaryColor
     var currentSize: CGFloat = 3.0
     var currentArrowStyle: ArrowStyle?
@@ -4541,7 +4487,7 @@ private class ColorSizeSubToolbar: NSView {
         self.showsShapeFillModes = shapeFillMode != nil
         self.showsShapeStrokeStyles = shapeStrokeStyle != nil
         self.shapeStrokePreviewShape = shapeStrokePreviewShape
-        super.init(frame: frame)
+        super.init(frame: frame, cornerRadius: frame.height / 2)
         setup()
     }
 
@@ -4557,7 +4503,7 @@ private class ColorSizeSubToolbar: NSView {
 
         func addStyleSeparator() {
             x += Self.separatorGap
-            addSubview(AdaptiveSeparatorView(frame: NSRect(
+            controls.addSubview(AdaptiveSeparatorView(frame: NSRect(
                 x: x, y: 6, width: 1, height: bounds.height - 12
             )))
             x += 1 + Self.arrowStyleGap
@@ -4578,7 +4524,7 @@ private class ColorSizeSubToolbar: NSView {
                 )
                 let click = NSClickGestureRecognizer(target: self, action: #selector(arrowStyleTapped(_:)))
                 button.addGestureRecognizer(click)
-                addSubview(button)
+                controls.addSubview(button)
                 arrowStyleButtons.append(button)
                 x += Self.arrowStyleButtonWidth + Self.arrowStyleButtonGap
             }
@@ -4601,7 +4547,7 @@ private class ColorSizeSubToolbar: NSView {
                 )
                 let click = NSClickGestureRecognizer(target: self, action: #selector(shapeStrokeStyleTapped(_:)))
                 button.addGestureRecognizer(click)
-                addSubview(button)
+                controls.addSubview(button)
                 shapeStrokeStyleButtons.append(button)
                 x += Self.shapeButtonWidth + Self.arrowStyleButtonGap
             }
@@ -4617,16 +4563,16 @@ private class ColorSizeSubToolbar: NSView {
                 target: self,
                 action: #selector(sizeSliderChanged(_:))
             )
-            slider.isContinuous = true
             slider.frame = NSRect(
                 x: x,
                 y: midY - HUDSlider.preferredHeight / 2,
                 width: Self.sizeSliderWidth,
                 height: HUDSlider.preferredHeight
             )
+            slider.accessibleTitle = L10n.editorStrokeWidth
             slider.onEditingBegan = { [weak self] in self?.onSizeBegan?() }
             slider.onEditingEnded = { [weak self] in self?.onSizeEnded?() }
-            addSubview(slider)
+            controls.addSubview(slider)
             sizeSlider = slider
             x += Self.sizeSliderWidth
         }
@@ -4635,7 +4581,7 @@ private class ColorSizeSubToolbar: NSView {
         if !sizes.isEmpty {
             x += 8
             let sep = AdaptiveSeparatorView(frame: NSRect(x: x, y: 6, width: 1, height: bounds.height - 12))
-            addSubview(sep)
+            controls.addSubview(sep)
             x += 1 + 9
         }
 
@@ -4658,7 +4604,7 @@ private class ColorSizeSubToolbar: NSView {
             swatch.itemIndex = i
             let click = NSClickGestureRecognizer(target: self, action: #selector(colorTapped(_:)))
             swatch.addGestureRecognizer(click)
-            addSubview(swatch)
+            controls.addSubview(swatch)
             colorButtons.append(swatch)
             x += swatchSize + ColorSizeSubToolbar.swatchGap
         }
@@ -4668,7 +4614,7 @@ private class ColorSizeSubToolbar: NSView {
         if showsShapeFillModes {
             let fillSepX = lastSectionRightEdge + ColorSizeSubToolbar.separatorGap
             let fillSep = AdaptiveSeparatorView(frame: NSRect(x: fillSepX, y: 6, width: 1, height: bounds.height - 12))
-            addSubview(fillSep)
+            controls.addSubview(fillSep)
 
             x = fillSepX + 1 + ColorSizeSubToolbar.arrowStyleGap
             let controlWidth = ShapeFillModeSegmentedControl.preferredWidth()
@@ -4685,7 +4631,7 @@ private class ColorSizeSubToolbar: NSView {
                 self?.currentShapeFillMode = mode
                 self?.onShapeFillModeChanged?(mode)
             }
-            addSubview(control)
+            controls.addSubview(control)
             shapeFillModeControl = control
         }
     }
@@ -4751,14 +4697,9 @@ private class ColorSizeSubToolbar: NSView {
                abs(ac.blueComponent - bc.blueComponent) < 0.01
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 }
 
-private final class SpotlightSubToolbar: NSView {
+private final class SpotlightSubToolbar: FloatingToolbarView {
     let slider: HUDSlider
 
     init(brightness: Double) {
@@ -4773,30 +4714,22 @@ private final class SpotlightSubToolbar: NSView {
             frame: NSRect(x: label.frame.maxX + 10, y: 6, width: 150, height: HUDSlider.preferredHeight),
             value: brightness, minValue: 0, maxValue: 100, target: nil, action: nil
         )
-        slider.isContinuous = true
         slider.valueSuffix = "%"
         slider.toolTip = title
-        slider.setAccessibilityRole(.slider)
-        slider.setAccessibilityLabel(title)
-        slider.setAccessibilityValue(brightness)
-        super.init(frame: NSRect(x: 0, y: 0, width: slider.frame.maxX + 12, height: 36))
-        addSubview(label)
-        addSubview(slider)
+        slider.accessibleTitle = title
+        super.init(frame: NSRect(x: 0, y: 0, width: slider.frame.maxX + 12, height: 36), cornerRadius: 18)
+        controls.addSubview(label)
+        controls.addSubview(slider)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-
-    override func draw(_ dirtyRect: NSRect) {
-        AdaptiveChrome.toolbarBackground.setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8).fill()
-    }
 }
 
 // MARK: - Mosaic Sub-toolbar
 
-private class MosaicSubToolbar: NSView {
+private class MosaicSubToolbar: FloatingToolbarView {
     private var currentStyle: MosaicStyle
     private var currentBlockSize: CGFloat
     private var currentBlurRadius: CGFloat
@@ -4816,7 +4749,7 @@ private class MosaicSubToolbar: NSView {
         self.currentStyle = style
         self.currentBlockSize = blockSize
         self.currentBlurRadius = blurRadius
-        super.init(frame: frame)
+        super.init(frame: frame, cornerRadius: frame.height / 2)
         setup()
     }
 
@@ -4852,7 +4785,7 @@ private class MosaicSubToolbar: NSView {
             button.setAccessibilityLabel(tip)
             button.target = self
             button.action = #selector(styleChanged(_:))
-            addSubview(button)
+            controls.addSubview(button)
             styleButtons.append(button)
             x += Self.buttonSize
         }
@@ -4861,7 +4794,7 @@ private class MosaicSubToolbar: NSView {
         let separator = NSView(frame: NSRect(x: x, y: midY - 9, width: 1, height: 18))
         separator.wantsLayer = true
         separator.layer?.backgroundColor = AdaptiveChrome.separator.cgColor
-        addSubview(separator)
+        controls.addSubview(separator)
         x += 10
 
         let s = HUDSlider(
@@ -4871,7 +4804,6 @@ private class MosaicSubToolbar: NSView {
             target: self,
             action: #selector(sliderChanged(_:))
         )
-        s.isContinuous = true
         s.frame = NSRect(
             x: x,
             y: midY - HUDSlider.preferredHeight / 2,
@@ -4880,7 +4812,7 @@ private class MosaicSubToolbar: NSView {
         )
         s.onEditingBegan = { [weak self] in self?.onAdjustmentBegan?() }
         s.onEditingEnded = { [weak self] in self?.onAdjustmentEnded?() }
-        addSubview(s)
+        controls.addSubview(s)
         slider = s
         updateControls()
     }
@@ -4906,7 +4838,7 @@ private class MosaicSubToolbar: NSView {
         slider.doubleValue = Double(isBlur ? currentBlurRadius : currentBlockSize)
         let tip = isBlur ? L10n.mosaicBlurAmount : L10n.mosaicGranularity
         slider.toolTip = tip
-        slider.setAccessibilityLabel(tip)
+        slider.accessibleTitle = tip
     }
 
     @objc private func sliderChanged(_ sender: HUDSlider) {
@@ -4918,18 +4850,12 @@ private class MosaicSubToolbar: NSView {
         }
         onSettingsChanged?(currentStyle, currentBlockSize, currentBlurRadius)
     }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 }
 
 // MARK: - Text Sub-toolbar
 
 /// Text-tool sub-toolbar — color swatches plus a 10–100 font-size slider.
-private class TextSubToolbar: NSView {
+private class TextSubToolbar: FloatingToolbarView {
     var currentColor: NSColor = .red
     var currentFontSize: CGFloat = CGFloat(Defaults.lastTextFontSize)
     var currentFontName: String? = Defaults.textFontName
@@ -4954,8 +4880,8 @@ private class TextSubToolbar: NSView {
     private var colorButtons: [NSView] = []
     private var fontButton: HUDPopupButton!
     private var slider: HUDSlider!
-    private var strokeCheckbox: HUDCheckboxButton!
-    private var calloutCheckbox: HUDCheckboxButton!
+    private var strokeCheckbox: NSButton!
+    private var calloutCheckbox: NSButton!
 
     private let dynamicColor: NSColor?
     private let baseColors: [NSColor] = EditorStyleDefaults.paletteColors
@@ -5030,7 +4956,7 @@ private class TextSubToolbar: NSView {
         self.dynamicColor = dynamicColor
         self.strokeEnabled = strokeEnabled
         self.calloutEnabled = calloutEnabled
-        super.init(frame: frame)
+        super.init(frame: frame, cornerRadius: frame.height / 2)
         setup()
     }
 
@@ -5058,13 +4984,13 @@ private class TextSubToolbar: NSView {
         )
         fontPicker.titleText = FontCatalog.title(for: currentFontName)
         fontPicker.setAccessibilityLabel(L10n.textFontLabel)
-        addSubview(fontPicker)
+        controls.addSubview(fontPicker)
         fontButton = fontPicker
         x += TextSubToolbar.fontButtonWidth + TextSubToolbar.sectionGap
 
         // Vertical separator between the font picker and the size slider.
         let fontSep = AdaptiveSeparatorView(frame: NSRect(x: x, y: 6, width: 1, height: bounds.height - 12))
-        addSubview(fontSep)
+        controls.addSubview(fontSep)
         x += 1 + TextSubToolbar.postSeparatorGap
 
         // Font-size slider.
@@ -5075,22 +5001,22 @@ private class TextSubToolbar: NSView {
             target: self,
             action: #selector(sliderChanged(_:))
         )
-        s.isContinuous = true
         s.frame = NSRect(
             x: x,
             y: midY - HUDSlider.preferredHeight / 2,
             width: TextSubToolbar.sliderWidth,
             height: HUDSlider.preferredHeight
         )
+        s.accessibleTitle = L10n.editorFontSize
         s.onEditingBegan = { [weak self] in self?.onFontSizeBegan?() }
         s.onEditingEnded = { [weak self] in self?.onFontSizeEnded?() }
-        addSubview(s)
+        controls.addSubview(s)
         slider = s
         x += TextSubToolbar.sliderWidth + 8
 
         // Vertical separator between size controls and color swatches.
         let sep = AdaptiveSeparatorView(frame: NSRect(x: x, y: 6, width: 1, height: bounds.height - 12))
-        addSubview(sep)
+        controls.addSubview(sep)
         x += 1 + 9
 
         // Color swatches. The dynamic picked color uses an ink-bottle glyph
@@ -5112,7 +5038,7 @@ private class TextSubToolbar: NSView {
             swatch.itemIndex = i
             let click = NSClickGestureRecognizer(target: self, action: #selector(colorTapped(_:)))
             swatch.addGestureRecognizer(click)
-            addSubview(swatch)
+            controls.addSubview(swatch)
             colorButtons.append(swatch)
             x += swatchSize + TextSubToolbar.swatchGap
         }
@@ -5121,39 +5047,33 @@ private class TextSubToolbar: NSView {
         let lastSwatchRightEdge = x - TextSubToolbar.swatchGap
         let strokeSepX = lastSwatchRightEdge + TextSubToolbar.separatorGap
         let strokeSep = AdaptiveSeparatorView(frame: NSRect(x: strokeSepX, y: 6, width: 1, height: bounds.height - 12))
-        addSubview(strokeSep)
+        controls.addSubview(strokeSep)
 
         // Outline checkbox.
         let checkboxHeight: CGFloat = 20
-        let checkbox = HUDCheckboxButton(
-            frame: NSRect(
-                x: strokeSepX + 1 + TextSubToolbar.checkboxGap,
-                y: midY - checkboxHeight / 2,
-                width: TextSubToolbar.strokeCheckboxWidth,
-                height: checkboxHeight
-            ),
-            title: L10n.textStrokeEffect,
-            target: self,
-            action: #selector(strokeCheckboxChanged(_:))
+        let checkbox = NSButton(checkboxWithTitle: L10n.textStrokeEffect, target: self, action: #selector(strokeCheckboxChanged(_:)))
+        checkbox.controlSize = .small
+        checkbox.frame = NSRect(
+            x: strokeSepX + 1 + TextSubToolbar.checkboxGap,
+            y: midY - checkboxHeight / 2,
+            width: TextSubToolbar.strokeCheckboxWidth,
+            height: checkboxHeight
         )
         checkbox.state = strokeEnabled ? .on : .off
-        addSubview(checkbox)
+        controls.addSubview(checkbox)
         strokeCheckbox = checkbox
 
         let calloutX = checkbox.frame.maxX + TextSubToolbar.checkboxGap
-        let calloutCheckbox = HUDCheckboxButton(
-            frame: NSRect(
-                x: calloutX,
-                y: midY - checkboxHeight / 2,
-                width: TextSubToolbar.calloutCheckboxWidth,
-                height: checkboxHeight
-            ),
-            title: L10n.textCalloutEffect,
-            target: self,
-            action: #selector(calloutCheckboxChanged(_:))
+        let calloutCheckbox = NSButton(checkboxWithTitle: L10n.textCalloutEffect, target: self, action: #selector(calloutCheckboxChanged(_:)))
+        calloutCheckbox.controlSize = .small
+        calloutCheckbox.frame = NSRect(
+            x: calloutX,
+            y: midY - checkboxHeight / 2,
+            width: TextSubToolbar.calloutCheckboxWidth,
+            height: checkboxHeight
         )
         calloutCheckbox.state = calloutEnabled ? .on : .off
-        addSubview(calloutCheckbox)
+        controls.addSubview(calloutCheckbox)
         self.calloutCheckbox = calloutCheckbox
 
     }
@@ -5188,12 +5108,12 @@ private class TextSubToolbar: NSView {
         onFontNameChanged?(fontName)
     }
 
-    @objc private func strokeCheckboxChanged(_ sender: HUDCheckboxButton) {
+    @objc private func strokeCheckboxChanged(_ sender: NSButton) {
         strokeEnabled = sender.state == .on
         onStrokeChanged?(strokeEnabled)
     }
 
-    @objc private func calloutCheckboxChanged(_ sender: HUDCheckboxButton) {
+    @objc private func calloutCheckboxChanged(_ sender: NSButton) {
         calloutEnabled = sender.state == .on
         onCalloutChanged?(calloutEnabled)
     }
@@ -5225,11 +5145,6 @@ private class TextSubToolbar: NSView {
                abs(ac.blueComponent - bc.blueComponent) < 0.01
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 }
 
 /// Shared hover behaviour for the custom-drawn style choices.
@@ -5575,39 +5490,44 @@ private class ColorSwatchView: NSView {
 // MARK: - HUD Slider
 
 final class HUDSlider: NSControl {
-    var minValue: Double
-    var maxValue: Double
-    var valueSuffix = ""
+    static let preferredHeight: CGFloat = 24
+    private let slider = EditorTrackingSlider()
+    private let readout = NSTextField(labelWithString: "")
+
+    var valueSuffix = "" {
+        didSet { updateReadout() }
+    }
+    var accessibleTitle: String? {
+        didSet { slider.setAccessibilityLabel(accessibleTitle) }
+    }
     var onEditingBegan: (() -> Void)?
     var onEditingEnded: (() -> Void)?
 
-    override var doubleValue: Double {
-        get { value }
-        set { setValue(newValue, notify: false) }
+    var minValue: Double {
+        get { slider.minValue }
+        set { slider.minValue = newValue }
     }
-
-    override var isEnabled: Bool {
-        didSet {
-            if !isEnabled {
-                isDragging = false
-            }
-            needsDisplay = true
+    var maxValue: Double {
+        get { slider.maxValue }
+        set { slider.maxValue = newValue }
+    }
+    override var doubleValue: Double {
+        get { slider.doubleValue }
+        set {
+            slider.doubleValue = min(max(newValue, minValue), maxValue)
+            updateReadout()
         }
     }
-
-    private var value: Double
-    private var isDragging = false {
-        didSet { needsDisplay = true }
+    override var toolTip: String? {
+        didSet { slider.toolTip = toolTip }
+    }
+    override var isEnabled: Bool {
+        didSet { slider.isEnabled = isEnabled }
     }
 
-    static let preferredHeight: CGFloat = 24
-    private let trackLeftHeight: CGFloat = 5
-    private let trackRightHeight: CGFloat = 14
-    private let trackCornerRadius: CGFloat = 3
-    private let knobHeight: CGFloat = 20
-    private let knobMinWidth: CGFloat = 34
-    private let knobHorizontalPadding: CGFloat = 12
-    private let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: Self.preferredHeight)
+    }
 
     init(
         frame: NSRect = .zero,
@@ -5617,276 +5537,115 @@ final class HUDSlider: NSControl {
         target: AnyObject?,
         action: Selector?
     ) {
-        self.minValue = minValue
-        self.maxValue = maxValue
-        self.value = min(max(value, minValue), maxValue)
         super.init(frame: frame)
         self.target = target
         self.action = action
-        wantsLayer = true
+        setAccessibilityElement(false)
+
+        slider.minValue = minValue
+        slider.maxValue = maxValue
+        slider.doubleValue = min(max(value, minValue), maxValue)
+        slider.controlSize = .small
+        slider.isContinuous = true
+        slider.target = self
+        slider.action = #selector(sliderChanged)
+        slider.onTrackingBegan = { [weak self] in self?.onEditingBegan?() }
+        slider.onTrackingEnded = { [weak self] in self?.onEditingEnded?() }
+        addSubview(slider)
+
+        readout.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+        readout.textColor = .secondaryLabelColor
+        readout.alignment = .right
+        readout.setAccessibilityElement(false)
+        addSubview(readout)
+        updateReadout()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: Self.preferredHeight)
+    override func layout() {
+        super.layout()
+        let width: CGFloat = valueSuffix.isEmpty ? 26 : 34
+        slider.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - width - 6), height: bounds.height)
+        let height = readout.intrinsicContentSize.height
+        readout.frame = NSRect(x: bounds.width - width, y: (bounds.height - height) / 2, width: width, height: height)
     }
 
-    override var acceptsFirstResponder: Bool { true }
+    @objc private func sliderChanged() {
+        let isDiscrete = !slider.isTrackingPointer
+        if isDiscrete { onEditingBegan?() }
+        updateReadout()
+        _ = sendAction(action, to: target)
+        if isDiscrete { onEditingEnded?() }
+    }
+
+    private func updateReadout() {
+        readout.stringValue = "\(Int(doubleValue.rounded()))\(valueSuffix)"
+        needsLayout = true
+    }
+}
+
+private final class EditorTrackingSlider: NSSlider {
+    var onTrackingBegan: (() -> Void)?
+    var onTrackingEnded: (() -> Void)?
+    private(set) var isTrackingPointer = false
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { isEnabled }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let enabledAlpha: CGFloat = isEnabled ? 1 : 0.35
-        let trackRect = currentTrackRect
-        let trackPath = trapezoidPath(
-            in: trackRect,
-            leftHeight: trackLeftHeight,
-            rightHeight: trackRightHeight
-        )
-        AdaptiveChrome.subtleFill.withAlphaComponent(enabledAlpha).setFill()
-        trackPath.fill()
-
-        let knobCenterX = trackRect.minX + normalizedValue * trackRect.width
-        if knobCenterX > trackRect.minX {
-            let fraction = normalizedValue
-            let fillRightHeight = interpolatedTrackHeight(at: fraction)
-            let fillPath = trapezoidPath(
-                in: NSRect(
-                    x: trackRect.minX,
-                    y: trackRect.minY,
-                    width: knobCenterX - trackRect.minX,
-                    height: trackRect.height
-                ),
-                leftHeight: trackLeftHeight,
-                rightHeight: fillRightHeight
-            )
-            accentGreen.withAlphaComponent(0.18 * enabledAlpha).setFill()
-            fillPath.fill()
-        }
-
-        AdaptiveChrome.border.withAlphaComponent(enabledAlpha).setStroke()
-        trackPath.lineWidth = 1.5
-        trackPath.stroke()
-
-        let knobWidth = currentKnobWidth
-        let knobRect = NSRect(
-            x: knobCenterX - knobWidth / 2,
-            y: floor(bounds.midY - knobHeight / 2),
-            width: knobWidth,
-            height: knobHeight
-        )
-        let knobPath = NSBezierPath(
-            roundedRect: knobRect,
-            xRadius: knobHeight / 2,
-            yRadius: knobHeight / 2
-        )
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.24 * enabledAlpha)
-        shadow.shadowBlurRadius = 2.5
-        shadow.shadowOffset = NSSize(width: 0, height: -1)
-        shadow.set()
-        NSColor.controlBackgroundColor.withAlphaComponent(enabledAlpha).setFill()
-        knobPath.fill()
-        NSGraphicsContext.restoreGraphicsState()
-
-        AdaptiveChrome.border.withAlphaComponent(enabledAlpha).setStroke()
-        knobPath.lineWidth = 0.6
-        knobPath.stroke()
-
-        drawValue(in: knobRect, enabledAlpha: enabledAlpha)
-    }
 
     override func mouseDown(with event: NSEvent) {
         guard isEnabled else { return }
-        window?.makeFirstResponder(self)
-        isDragging = true
-        onEditingBegan?()
-        updateValue(with: event, notify: true)
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard isEnabled else { return }
-        updateValue(with: event, notify: isContinuous)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        guard isEnabled else {
-            isDragging = false
-            return
+        isTrackingPointer = true
+        onTrackingBegan?()
+        defer {
+            isTrackingPointer = false
+            onTrackingEnded?()
         }
-        updateValue(with: event, notify: true)
-        isDragging = false
-        onEditingEnded?()
+        super.mouseDown(with: event)
     }
 
     override func keyDown(with event: NSEvent) {
         guard isEnabled else { return }
         let fineStep = max((maxValue - minValue) / 100, 0.1)
-        let coarseStep = max((maxValue - minValue) / 20, fineStep)
-        let step = event.modifierFlags.contains(.shift) ? coarseStep : fineStep
+        let step = event.modifierFlags.contains(.shift) ? max((maxValue - minValue) / 20, fineStep) : fineStep
         switch Int(event.keyCode) {
         case kVK_LeftArrow, kVK_DownArrow:
-            onEditingBegan?()
-            setValue(value - step, notify: true)
-            onEditingEnded?()
+            doubleValue = max(minValue, doubleValue - step)
         case kVK_RightArrow, kVK_UpArrow:
-            onEditingBegan?()
-            setValue(value + step, notify: true)
-            onEditingEnded?()
+            doubleValue = min(maxValue, doubleValue + step)
         default:
             super.keyDown(with: event)
+            return
         }
-    }
-
-    private var normalizedValue: CGFloat {
-        guard maxValue > minValue else { return 0 }
-        return CGFloat((value - minValue) / (maxValue - minValue))
-    }
-
-    private var currentKnobWidth: CGFloat {
-        let samples = [
-            displayText(for: minValue),
-            displayText(for: maxValue),
-            displayText(for: value),
-        ]
-        let maxWidth = samples
-            .map { ceil(($0 as NSString).size(withAttributes: [.font: valueFont]).width) }
-            .max() ?? 0
-        return max(knobMinWidth, maxWidth + knobHorizontalPadding)
-    }
-
-    private var currentTrackRect: NSRect {
-        let knobWidth = currentKnobWidth
-        return NSRect(
-            x: knobWidth / 2,
-            y: floor(bounds.midY - trackRightHeight / 2),
-            width: max(1, bounds.width - knobWidth),
-            height: trackRightHeight
-        )
-    }
-
-    private func updateValue(with event: NSEvent, notify: Bool) {
-        let point = convert(event.locationInWindow, from: nil)
-        let trackRect = currentTrackRect
-        let normalized = max(0, min(1, (point.x - trackRect.minX) / trackRect.width))
-        setValue(minValue + Double(normalized) * (maxValue - minValue), notify: notify)
-    }
-
-    private func setValue(_ newValue: Double, notify: Bool) {
-        value = min(max(newValue, minValue), maxValue)
-        setAccessibilityValue(value)
-        needsDisplay = true
-        if notify, let action {
-            sendAction(action, to: target)
-        }
-    }
-
-    private func trapezoidPath(in rect: NSRect, leftHeight: CGFloat, rightHeight: CGFloat) -> NSBezierPath {
-        let leftHalf = leftHeight / 2
-        let rightHalf = rightHeight / 2
-        return roundedPolygonPath(
-            points: [
-                NSPoint(x: rect.minX, y: rect.midY + leftHalf),
-                NSPoint(x: rect.maxX, y: rect.midY + rightHalf),
-                NSPoint(x: rect.maxX, y: rect.midY - rightHalf),
-                NSPoint(x: rect.minX, y: rect.midY - leftHalf),
-            ],
-            radius: trackCornerRadius
-        )
-    }
-
-    private func roundedPolygonPath(points: [NSPoint], radius: CGFloat) -> NSBezierPath {
-        let path = NSBezierPath()
-        guard points.count > 2, radius > 0 else {
-            if let first = points.first {
-                path.move(to: first)
-                for point in points.dropFirst() {
-                    path.line(to: point)
-                }
-                path.close()
-            }
-            return path
-        }
-
-        for index in points.indices {
-            let current = points[index]
-            let previous = points[(index - 1 + points.count) % points.count]
-            let next = points[(index + 1) % points.count]
-            let previousVector = CGVector(dx: previous.x - current.x, dy: previous.y - current.y)
-            let nextVector = CGVector(dx: next.x - current.x, dy: next.y - current.y)
-            let previousLength = hypot(previousVector.dx, previousVector.dy)
-            let nextLength = hypot(nextVector.dx, nextVector.dy)
-            guard previousLength > 0, nextLength > 0 else { continue }
-
-            let cornerDistance = min(radius, previousLength / 2, nextLength / 2)
-            let start = NSPoint(
-                x: current.x + previousVector.dx / previousLength * cornerDistance,
-                y: current.y + previousVector.dy / previousLength * cornerDistance
-            )
-            let end = NSPoint(
-                x: current.x + nextVector.dx / nextLength * cornerDistance,
-                y: current.y + nextVector.dy / nextLength * cornerDistance
-            )
-
-            if index == points.startIndex {
-                path.move(to: start)
-            } else {
-                path.line(to: start)
-            }
-            path.curve(to: end, controlPoint1: current, controlPoint2: current)
-        }
-        path.close()
-        return path
-    }
-
-    private func interpolatedTrackHeight(at fraction: CGFloat) -> CGFloat {
-        trackLeftHeight + (trackRightHeight - trackLeftHeight) * max(0, min(1, fraction))
-    }
-
-    private func drawValue(in rect: NSRect, enabledAlpha: CGFloat) {
-        let text = displayText(for: value)
-        let attributed = NSAttributedString(
-            string: text,
-            attributes: [
-                .font: valueFont,
-                .foregroundColor: NSColor.labelColor.withAlphaComponent(enabledAlpha),
-            ]
-        )
-        let textSize = attributed.size()
-        let textRect = NSRect(
-            x: floor(rect.midX - textSize.width / 2),
-            y: floor(rect.midY - textSize.height / 2),
-            width: ceil(textSize.width),
-            height: ceil(textSize.height)
-        )
-        attributed.draw(in: textRect)
-    }
-
-    private func displayText(for rawValue: Double) -> String {
-        "\(Int(rawValue.rounded()))\(valueSuffix)"
+        _ = sendAction(action, to: target)
     }
 }
 
-private final class ShapeFillModeSegmentedControl: NSView {
+private final class ShapeFillModeSegmentedControl: NSSegmentedControl {
     static let preferredHeight: CGFloat = 24
-    private static let minSegmentWidth: CGFloat = 54
-    private static let segmentHorizontalPadding: CGFloat = 18
-    private static let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
     private static let modes = ShapeFillMode.allCases
 
     var selectedMode: ShapeFillMode {
-        didSet { needsDisplay = true }
+        didSet { selectedSegment = Self.modes.firstIndex(of: selectedMode) ?? 0 }
     }
     var onSelect: ((ShapeFillMode) -> Void)?
 
     init(frame: NSRect, selectedMode: ShapeFillMode) {
         self.selectedMode = selectedMode
         super.init(frame: frame)
+        controlSize = .small
+        trackingMode = .selectOne
+        segmentCount = Self.modes.count
+        for (index, mode) in Self.modes.enumerated() {
+            setLabel(Self.title(for: mode), forSegment: index)
+            setWidth(Self.width(for: mode), forSegment: index)
+        }
+        selectedSegment = Self.modes.firstIndex(of: selectedMode) ?? 0
         toolTip = "\(L10n.shapeFillEffect) (F)"
-        wantsLayer = true
+        setAccessibilityLabel(L10n.shapeFillEffect)
+        target = self
+        action = #selector(selectionChanged)
     }
 
     required init?(coder: NSCoder) {
@@ -5894,60 +5653,14 @@ private final class ShapeFillModeSegmentedControl: NSView {
     }
 
     static func preferredWidth() -> CGFloat {
-        segmentWidths().reduce(0, +)
+        modes.reduce(8) { $0 + width(for: $1) }
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func resetCursorRects() {
-        super.resetCursorRects()
-        addCursorRect(bounds, cursor: .pointingHand)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        guard let mode = mode(atX: point.x) else { return }
-        selectedMode = mode
-        onSelect?(mode)
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let rect = bounds.insetBy(dx: 0.5, dy: 0.5)
-        let background = NSBezierPath(roundedRect: rect, xRadius: 7, yRadius: 7)
-        AdaptiveChrome.cardBackground.setFill()
-        background.fill()
-
-        let widths = Self.segmentWidths()
-        var x = rect.minX
-        for (index, mode) in Self.modes.enumerated() {
-            let width = widths[index]
-            let segmentRect = NSRect(x: x, y: rect.minY, width: width, height: rect.height)
-            if mode == selectedMode {
-                let selected = NSBezierPath(roundedRect: segmentRect.insetBy(dx: 0.5, dy: 0.5), xRadius: 7, yRadius: 7)
-                accentGreen.setFill()
-                selected.fill()
-            } else if index > 0 {
-                AdaptiveChrome.separator.setStroke()
-                let sep = NSBezierPath()
-                sep.move(to: NSPoint(x: x, y: rect.minY + 4))
-                sep.line(to: NSPoint(x: x, y: rect.maxY - 4))
-                sep.lineWidth = 1
-                sep.stroke()
-            }
-            drawTitle(for: mode, in: segmentRect)
-            x += width
-        }
-
-        AdaptiveChrome.border.setStroke()
-        background.lineWidth = 1
-        background.stroke()
-    }
-
-    private static func segmentWidths() -> [CGFloat] {
-        modes.map { mode in
-            let textWidth = ceil((title(for: mode) as NSString).size(withAttributes: [.font: font]).width)
-            return max(minSegmentWidth, textWidth + segmentHorizontalPadding)
-        }
+    private static func width(for mode: ShapeFillMode) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .small))
+        return max(54, ceil(title(for: mode).size(withAttributes: [.font: font]).width) + 18)
     }
 
     private static func title(for mode: ShapeFillMode) -> String {
@@ -5958,31 +5671,10 @@ private final class ShapeFillModeSegmentedControl: NSView {
         }
     }
 
-    private func mode(atX targetX: CGFloat) -> ShapeFillMode? {
-        let widths = Self.segmentWidths()
-        var x: CGFloat = 0
-        for (index, width) in widths.enumerated() {
-            if targetX >= x && targetX <= x + width {
-                return Self.modes[index]
-            }
-            x += width
-        }
-        return nil
-    }
-
-    private func drawTitle(for mode: ShapeFillMode, in rect: NSRect) {
-        let selected = mode == selectedMode
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: Self.font,
-            .foregroundColor: selected ? NSColor.white : NSColor.labelColor,
-        ]
-        let title = Self.title(for: mode) as NSString
-        let size = title.size(withAttributes: attributes)
-        let point = NSPoint(
-            x: rect.midX - size.width / 2,
-            y: rect.midY - size.height / 2
-        )
-        title.draw(at: point, withAttributes: attributes)
+    @objc private func selectionChanged() {
+        guard Self.modes.indices.contains(selectedSegment) else { return }
+        selectedMode = Self.modes[selectedSegment]
+        onSelect?(selectedMode)
     }
 }
 
@@ -6120,170 +5812,27 @@ private final class ShapeStrokeStyleButtonView: StyleOptionView {
     }
 }
 
-// MARK: - HUD Checkbox
-
-/// HUD-styled pop-up button used inside the floating sub-toolbars.
-///
-/// Visual language matches `HUDCheckboxButton`: 12pt medium label in
-/// `labelColor`, `AdaptiveChrome.subtleFill` background with an
-/// `AdaptiveChrome.border` outline, so it adapts to light and dark exactly like
-/// the checkboxes and separators sitting next to it. The title truncates and a
-/// trailing chevron marks it as a menu.
 private final class HUDPopupButton: NSButton {
-    private let labelFont = NSFont.systemFont(ofSize: 12, weight: .medium)
-    private let horizontalPad: CGFloat = 8
-    private let chevronSize: CGFloat = 9
-    private let chevronGap: CGFloat = 6
-
-    var hoverTip: String?
-
-    var titleText: String = "" {
-        didSet {
-            hoverTip = titleText
-            setAccessibilityValue(titleText)
-            needsDisplay = true
+    var titleText: String {
+        get { title }
+        set {
+            title = newValue
+            toolTip = newValue
+            setAccessibilityValue(newValue)
         }
     }
 
-    private var hoverTrackingArea: NSTrackingArea?
-    private var isHovering = false {
-        didSet { needsDisplay = true }
-    }
-
-    init(frame frameRect: NSRect, target: AnyObject?, action: Selector?) {
-        super.init(frame: frameRect)
-        self.title = ""
-        self.target = target
-        self.action = action
-        setButtonType(.momentaryChange)
-        bezelStyle = .regularSquare
-        isBordered = false
-        wantsLayer = true
-        (cell as? NSButtonCell)?.highlightsBy = []
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func resetCursorRects() {
-        super.resetCursorRects()
-        addCursorRect(bounds, cursor: .pointingHand)
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let area = hoverTrackingArea {
-            removeTrackingArea(area)
-        }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(area)
-        hoverTrackingArea = area
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        super.mouseEntered(with: event)
-        isHovering = true
-        guard let tip = hoverTip, !tip.isEmpty, let window else { return }
-        let frameOnScreen = window.convertToScreen(convert(bounds, to: nil))
-        ToolTipWindow.show(text: tip, anchor: frameOnScreen)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        isHovering = false
-        ToolTipWindow.hide()
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        ToolTipWindow.hide()
-        super.mouseDown(with: event)
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if window == nil { ToolTipWindow.hide() }
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let emphasized = isHovering || isHighlighted
-        let box = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 5, yRadius: 5)
-
-        // The adaptive chrome colors already carry their own alpha (subtleFill
-        // is 8-10% ink, border 16%). `withAlphaComponent` REPLACES that alpha
-        // rather than scaling it, so re-applying it here painted a near-opaque
-        // black slab in light mode and a near-opaque white one in dark mode.
-        // Use them unmodified, exactly like MoreOptionsButton and ToolButton.
-        (emphasized ? AdaptiveChrome.selectedFill : AdaptiveChrome.subtleFill).setFill()
-        box.fill()
-        AdaptiveChrome.border.setStroke()
-        box.lineWidth = 1
-        box.stroke()
-
-        let foreground = isEnabled
-            ? NSColor.labelColor
-            : NSColor.labelColor.withAlphaComponent(0.35)
-
-        // Hand-drawn chevron rather than a tinted SF Symbol image: an
-        // NSImage drawing handler runs outside the view's drawing appearance,
-        // so `labelColor` inside it resolved against the wrong appearance.
-        let chevronCenterX = bounds.maxX - horizontalPad - chevronSize / 2
-        let halfChevron = chevronSize / 2
-        // NSButton draws flipped, so "down" is +y there and -y in a plain view.
-        let chevronDrop = halfChevron * 0.45 * (isFlipped ? 1 : -1)
-        let chevron = NSBezierPath()
-        chevron.move(to: NSPoint(x: chevronCenterX - halfChevron, y: bounds.midY - chevronDrop))
-        chevron.line(to: NSPoint(x: chevronCenterX, y: bounds.midY + chevronDrop))
-        chevron.line(to: NSPoint(x: chevronCenterX + halfChevron, y: bounds.midY - chevronDrop))
-        chevron.lineWidth = 1.6
-        chevron.lineCapStyle = .round
-        chevron.lineJoinStyle = .round
-        foreground.setStroke()
-        chevron.stroke()
-
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineBreakMode = .byTruncatingTail
-        let attributed = NSAttributedString(
-            string: titleText,
-            attributes: [
-                .font: labelFont,
-                .foregroundColor: foreground,
-                .paragraphStyle: paragraph,
-            ]
-        )
-        let textHeight = ceil(attributed.size().height)
-        let textRect = NSRect(
-            x: horizontalPad,
-            y: floor(bounds.midY - textHeight / 2),
-            width: max(0, chevronCenterX - halfChevron - chevronGap - horizontalPad),
-            height: textHeight
-        )
-        attributed.draw(in: textRect)
-    }
-}
-
-private final class HUDCheckboxButton: NSButton {
-    private let label: String
-    private let labelFont = NSFont.systemFont(ofSize: 12, weight: .medium)
-    private let boxSize: CGFloat = 16
-
-    init(frame: NSRect, title: String, target: AnyObject?, action: Selector?) {
-        self.label = title
+    init(frame: NSRect, target: AnyObject?, action: Selector?) {
         super.init(frame: frame)
-        self.title = ""
         self.target = target
         self.action = action
-        setButtonType(.toggle)
-        bezelStyle = .regularSquare
-        isBordered = false
-        wantsLayer = true
+        bezelStyle = .rounded
+        controlSize = .small
+        alignment = .left
+        cell?.lineBreakMode = .byTruncatingTail
+        image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .semibold))
+        imagePosition = .imageTrailing
     }
 
     required init?(coder: NSCoder) {
@@ -6291,63 +5840,11 @@ private final class HUDCheckboxButton: NSButton {
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let enabledAlpha: CGFloat = isEnabled ? 1 : 0.35
-        let boxRect = NSRect(
-            x: 0,
-            y: floor(bounds.midY - boxSize / 2),
-            width: boxSize,
-            height: boxSize
-        )
-        let boxPath = NSBezierPath(roundedRect: boxRect, xRadius: 4, yRadius: 4)
-
-        if state == .on {
-            accentGreen.withAlphaComponent(enabledAlpha).setFill()
-        } else {
-            AdaptiveChrome.subtleFill
-                .withAlphaComponent((isHighlighted ? 1.0 : 0.72) * enabledAlpha)
-                .setFill()
-        }
-        boxPath.fill()
-
-        AdaptiveChrome.border.withAlphaComponent(enabledAlpha).setStroke()
-        boxPath.lineWidth = 1
-        boxPath.stroke()
-
-        if state == .on {
-            let check = NSBezierPath()
-            check.move(to: NSPoint(x: boxRect.minX + 4.0, y: boxRect.midY + 0.5))
-            check.line(to: NSPoint(x: boxRect.minX + 7.0, y: boxRect.midY + 3.5))
-            check.line(to: NSPoint(x: boxRect.maxX - 3.5, y: boxRect.midY - 4.0))
-            check.lineWidth = 2
-            check.lineCapStyle = .round
-            check.lineJoinStyle = .round
-            NSColor(white: 0.08, alpha: enabledAlpha).setStroke()
-            check.stroke()
-        }
-
-        let attributed = NSAttributedString(
-            string: label,
-            attributes: [
-                .font: labelFont,
-                .foregroundColor: NSColor.labelColor.withAlphaComponent(enabledAlpha),
-            ]
-        )
-        let textSize = attributed.size()
-        let textRect = NSRect(
-            x: boxRect.maxX + 8,
-            y: floor(bounds.midY - textSize.height / 2),
-            width: max(0, bounds.width - boxRect.maxX - 8),
-            height: ceil(textSize.height)
-        )
-        attributed.draw(in: textRect)
-    }
 }
 
 // MARK: - Beautify Sub-toolbar
 
-private class BeautifySubToolbar: NSView {
+private class BeautifySubToolbar: FloatingToolbarView {
     var onPresetSelected: ((BeautifyPreset) -> Void)?
     var onMoreRequested: ((NSView) -> Void)?
     var currentPresetID: String? {
@@ -6392,7 +5889,7 @@ private class BeautifySubToolbar: NSView {
         self.presets = presets
         self.screen = screen
         self.initialShadowSize = initialShadowSize
-        super.init(frame: frame)
+        super.init(frame: frame, cornerRadius: frame.height / 2)
         setup()
     }
 
@@ -6429,7 +5926,7 @@ private class BeautifySubToolbar: NSView {
         )
         moreButton.target = self
         moreButton.action = #selector(showMorePresets)
-        addSubview(moreButton)
+        controls.addSubview(moreButton)
         x = addSeparator(after: moreButton.frame.maxX)
 
         let slider = HUDSlider(
@@ -6439,7 +5936,6 @@ private class BeautifySubToolbar: NSView {
             target: self,
             action: #selector(shadowSizeSliderChanged(_:))
         )
-        slider.isContinuous = true
         slider.frame = NSRect(
             x: x,
             y: midY - sliderHeight / 2,
@@ -6447,10 +5943,10 @@ private class BeautifySubToolbar: NSView {
             height: sliderHeight
         )
         slider.toolTip = L10n.beautifyShadowSizeHint
-        slider.setAccessibilityLabel(L10n.shadowSizeLabel)
+        slider.accessibleTitle = L10n.shadowSizeLabel
         slider.onEditingBegan = { [weak self] in self?.onShadowSizeEditingBegan?() }
         slider.onEditingEnded = { [weak self] in self?.onShadowSizeEditingEnded?() }
-        addSubview(slider)
+        controls.addSubview(slider)
         shadowSizeSlider = slider
 
         updateSelection()
@@ -6489,7 +5985,7 @@ private class BeautifySubToolbar: NSView {
             }
             let click = NSClickGestureRecognizer(target: self, action: #selector(swatchTapped(_:)))
             swatch.addGestureRecognizer(click)
-            addSubview(swatch)
+            controls.addSubview(swatch)
             swatchButtons.append(swatch)
             x += swatchDiameter + swatchSpacing
         }
@@ -6506,7 +6002,7 @@ private class BeautifySubToolbar: NSView {
                 height: bounds.height - 12
             )
         )
-        addSubview(separator)
+        controls.addSubview(separator)
         return separatorX + Self.separatorWidth + Self.sectionGap
     }
 
@@ -6540,11 +6036,6 @@ private class BeautifySubToolbar: NSView {
         } ?? false
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 8, yRadius: 8)
-        AdaptiveChrome.toolbarBackground.setFill()
-        path.fill()
-    }
 }
 
 private final class BeautifyPresetPickerView: NSView {
@@ -6594,8 +6085,6 @@ private final class BeautifyPresetPickerView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     private func setup() {
-        wantsLayer = true
-
         let firstRowY = bounds.maxY - Self.verticalPadding - Self.swatchDiameter
         for (index, preset) in presets.prefix(Self.maxGridItems).enumerated() {
             let row = index / Self.gridColumns
@@ -6638,17 +6127,6 @@ private final class BeautifyPresetPickerView: NSView {
         for swatch in swatchViews {
             swatch.isSelected = swatch.preset.id == selectedPresetID
         }
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let rect = bounds.insetBy(dx: 1, dy: 1)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 14, yRadius: 14)
-        AdaptiveChrome.popoverBackground.setFill()
-        path.fill()
-
-        AdaptiveChrome.border.setStroke()
-        path.lineWidth = 1
-        path.stroke()
     }
 }
 

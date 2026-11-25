@@ -9,7 +9,7 @@ final class ShareViewController: NSViewController {
     private var didStartProcessing = false
 
     override func loadView() {
-        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 112))
+        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 100))
 
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .regular
@@ -17,21 +17,24 @@ final class ShareViewController: NSViewController {
         progressIndicator.translatesAutoresizingMaskIntoConstraints = false
 
         statusLabel.alignment = .center
-        statusLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        statusLabel.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        statusLabel.textColor = .labelColor
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.maximumNumberOfLines = 2
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        rootView.addSubview(progressIndicator)
-        rootView.addSubview(statusLabel)
+        let stack = NSStackView(views: [progressIndicator, statusLabel])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        rootView.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            progressIndicator.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
-            progressIndicator.topAnchor.constraint(equalTo: rootView.topAnchor, constant: 24),
-
-            statusLabel.topAnchor.constraint(equalTo: progressIndicator.bottomAnchor, constant: 16),
-            statusLabel.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 24),
-            statusLabel.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -24)
+            stack.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -24),
+            stack.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),
+            statusLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
 
         view = rootView

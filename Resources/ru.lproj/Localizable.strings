@@ -69,6 +69,7 @@
 "pinToolbarDrag" = "Перетащить закрепленное изображение";
 "pinToolbarEdit" = "Редактировать закрепленное изображение";
 "pinToolbarEditText" = "Редактировать текст";
+"pinToolbarCloseText" = "Закрыть";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "Редактировать выбранное изображение";
@@ -772,3 +773,7 @@
 "historyFilePreviewRetry" = "Проверить снова";
 
 "historyFilePreviewUnavailable" = "Предпросмотр этого файла недоступен";
+"editorStrokeWidth" = "Толщина линии";
+"editorFontSize" = "Размер шрифта";
+"ocrPinPanel" = "Закрепить панель";
+"ocrUnpinPanel" = "Открепить панель";

@@ -23,7 +23,11 @@ class CursorChipWindow: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         sharingType = .none
 
-        contentView = chipView
+        contentView = FloatingGlassView(
+            frame: NSRect(origin: .zero, size: chipSize),
+            content: chipView,
+            cornerRadius: chipSize.height / 2
+        )
     }
 
     func updateText(_ text: String) {
@@ -32,7 +36,6 @@ class CursorChipWindow: NSPanel {
         setContentSize(chipSize)
         chipView.frame = NSRect(origin: .zero, size: chipSize)
         chipView.text = text
-        chipView.needsDisplay = true
         updatePosition()
     }
 
@@ -57,28 +60,45 @@ class CursorChipWindow: NSPanel {
 
     private func updatePosition() {
         let loc = NSEvent.mouseLocation
-        setFrameOrigin(NSPoint(x: loc.x + 15, y: loc.y - 40))
+        var origin = NSPoint(x: loc.x + 15, y: loc.y - 40)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(loc) }) {
+            let visible = screen.frame.insetBy(dx: 4, dy: 4)
+            if origin.x + frame.width > visible.maxX {
+                origin.x = max(visible.minX, loc.x - 15 - frame.width)
+            }
+            if origin.y < visible.minY {
+                origin.y = min(visible.maxY - frame.height, loc.y + 15)
+            }
+        }
+        setFrameOrigin(origin)
     }
 }
 
-private class ChipView: NSView {
-    private static let minWidth: CGFloat = 240
+private final class ChipView: NSView {
     private static let maxWidth: CGFloat = 560
     private static let height: CGFloat = 32
     private static let horizontalPadding: CGFloat = 28
     private static let font = NSFont.systemFont(ofSize: 12, weight: .medium)
-    private static let paragraphStyle: NSParagraphStyle = {
-        let style = NSMutableParagraphStyle()
-        style.alignment = .center
-        style.lineBreakMode = .byTruncatingTail
-        return style
-    }()
+    private let label = NSTextField(labelWithString: "")
 
-    var text: String
+    var text: String {
+        get { label.stringValue }
+        set { label.stringValue = newValue }
+    }
 
     init(frame frameRect: NSRect, text: String) {
-        self.text = text
         super.init(frame: frameRect)
+        label.stringValue = text
+        label.font = Self.font
+        label.alignment = .center
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.horizontalPadding / 2),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.horizontalPadding / 2),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
     }
 
     required init?(coder: NSCoder) {
@@ -86,38 +106,7 @@ private class ChipView: NSView {
     }
 
     static func fittingSize(for text: String) -> NSSize {
-        let attrs: [NSAttributedString.Key: Any] = [.font: font]
-        let textWidth = ceil(text.size(withAttributes: attrs).width)
-        let width = min(max(minWidth, textWidth + horizontalPadding), maxWidth)
-        return NSSize(width: width, height: height)
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
-
-        AdaptiveChrome.floatingBackground.setFill()
-        path.fill()
-
-        AdaptiveChrome.border.setStroke()
-        path.lineWidth = 0.5
-        path.stroke()
-
-        let attrs: [NSAttributedString.Key: Any] = [
-            .foregroundColor: NSColor.labelColor,
-            .font: Self.font,
-            .paragraphStyle: Self.paragraphStyle
-        ]
-        let size = text.size(withAttributes: attrs)
-        let textRect = NSRect(
-            x: Self.horizontalPadding / 2,
-            y: (bounds.height - size.height) / 2,
-            width: bounds.width - Self.horizontalPadding,
-            height: size.height
-        )
-        (text as NSString).draw(
-            with: textRect,
-            options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-            attributes: attrs
-        )
+        let textWidth = ceil(text.size(withAttributes: [.font: font]).width)
+        return NSSize(width: min(textWidth + horizontalPadding, maxWidth), height: height)
     }
 }
