@@ -320,9 +320,6 @@ class EditWindowController {
     private var emojiPopover: NSPopover?
     private var beautifyPresetPopover: NSPopover?
     private var beautifyToolbarPresetIDs: [String] = Defaults.beautifyToolbarPresetIDs
-    /// Last color sampled from the toolbar eyedropper. Persisted locally and
-    /// shown as an ink-bottle control for color-capable annotation tools.
-    private var pickedColorSwatch: NSColor?
 
     var isTextEditing: Bool {
         canvasView?.isTextEditing == true
@@ -364,7 +361,6 @@ class EditWindowController {
         self.onRecordingSelection = onRecordingSelection
         self.onRequestFocusReturn = onRequestFocusReturn
         self.onComplete = onComplete
-        self.pickedColorSwatch = Self.color(fromHex: Defaults.lastPickedColorHex)
     }
 
     func attachWindowCapturePreparation(_ preparation: WindowCapturePreparation?) {
@@ -547,8 +543,6 @@ class EditWindowController {
         switch item {
         case .insertImage:
             showInsertImageMenu()
-        case .colorPicker:
-            runColorPicker()
         case .undo:
             _ = canvasView?.undo()
         case .redo:
@@ -567,9 +561,6 @@ class EditWindowController {
             performScreenshotTranslation()
         case .save:
             save()
-        case .upload:
-            guard Defaults.hasUsableUploadProvider else { return false }
-            upload()
         case .pin:
             pin()
         case .record:
@@ -921,7 +912,6 @@ class EditWindowController {
         case .pen, .line:
             showColorSizeSubToolbar(
                 sizes: EditorStyleDefaults.standardLineSizes,
-                dynamicColor: pickedColorSwatch,
                 currentSize: currentLineWidth,
                 onSize: { [weak self] size in
                     self?.setCurrentDrawingLineWidth(size)
@@ -930,11 +920,9 @@ class EditWindowController {
         case .arrow:
             showColorSizeSubToolbar(
                 sizes: EditorStyleDefaults.standardLineSizes,
-                dynamicColor: pickedColorSwatch,
                 currentSize: currentLineWidth,
                 width: ColorSizeSubToolbar.preferredWidth(
                     sizes: EditorStyleDefaults.standardLineSizes,
-                    dynamicColor: pickedColorSwatch,
                     showsShapeFillModes: false,
                     showsArrowStyles: true
                 ),
@@ -949,11 +937,9 @@ class EditWindowController {
         case .rectangle, .ellipse:
             showColorSizeSubToolbar(
                 sizes: EditorStyleDefaults.standardLineSizes,
-                dynamicColor: pickedColorSwatch,
                 currentSize: currentLineWidth,
                 width: ColorSizeSubToolbar.preferredWidth(
                     sizes: EditorStyleDefaults.standardLineSizes,
-                    dynamicColor: pickedColorSwatch,
                     showsShapeFillModes: true,
                     showsShapeStrokeStyles: true,
                     shapeStrokePreviewShape: tool == .ellipse ? .ellipse : .rectangle
@@ -974,7 +960,6 @@ class EditWindowController {
         case .magnifier:
             showColorSizeSubToolbar(
                 sizes: EditorStyleDefaults.standardLineSizes,
-                dynamicColor: pickedColorSwatch,
                 currentSize: currentLineWidth,
                 onSize: { [weak self] size in
                     self?.setCurrentDrawingLineWidth(size)
@@ -984,7 +969,6 @@ class EditWindowController {
             showColorSizeSubToolbar(
                 sizes: EditorStyleDefaults.markerLineSizes,
                 currentColor: currentMarkerColor,
-                dynamicColor: pickedColorSwatch,
                 currentSize: currentMarkerLineWidth,
                 sizeMaxValue: CGFloat(Defaults.markerLineWidthMax),
                 onColor: { [weak self] color in
@@ -1001,7 +985,6 @@ class EditWindowController {
         case .numbered:
             showColorSizeSubToolbar(
                 sizes: [CGFloat(Defaults.numberSizeDefault)],
-                dynamicColor: pickedColorSwatch,
                 currentSize: currentNumberSize,
                 sizeMinValue: CGFloat(Defaults.numberSizeMin),
                 sizeMaxValue: CGFloat(Defaults.numberSizeMax),
@@ -1024,7 +1007,6 @@ class EditWindowController {
     private func showColorSizeSubToolbar(
         sizes: [CGFloat],
         currentColor: NSColor? = nil,
-        dynamicColor: NSColor? = nil,
         currentSize: CGFloat,
         width: CGFloat? = nil,
         sizeMinValue: CGFloat = CGFloat(Defaults.editorLineWidthMin),
@@ -1043,7 +1025,6 @@ class EditWindowController {
         let offset: CGFloat = isBeautifyActive ? (36 + 4) : 0
         let resolvedWidth = width ?? ColorSizeSubToolbar.preferredWidth(
             sizes: sizes,
-            dynamicColor: dynamicColor,
             showsShapeFillModes: shapeFillMode != nil,
             showsArrowStyles: arrowStyle != nil,
             showsShapeStrokeStyles: shapeStrokeStyle != nil,
@@ -1062,7 +1043,6 @@ class EditWindowController {
             frame: subRect,
             sizes: sizes,
             currentColor: resolvedColor,
-            dynamicColor: dynamicColor,
             currentSize: currentSize,
             sizeMinValue: sizeMinValue,
             sizeMaxValue: sizeMaxValue,
@@ -1103,7 +1083,7 @@ class EditWindowController {
         guard let hostSelectionView, let toolbarFrame = subToolbarAnchorFrame else { return }
         let offset: CGFloat = isBeautifyActive ? (36 + 4) : 0
         let subRect = subToolbarRect(
-            width: TextSubToolbar.preferredWidth(dynamicColor: pickedColorSwatch),
+            width: TextSubToolbar.preferredWidth(),
             height: 36,
             toolbarFrame: toolbarFrame,
             in: hostSelectionView.bounds,
@@ -1115,7 +1095,6 @@ class EditWindowController {
             currentColor: currentColor,
             currentFontSize: currentFontSize,
             currentFontName: currentFontName,
-            dynamicColor: pickedColorSwatch,
             strokeEnabled: currentTextStroke,
             calloutEnabled: currentTextCallout
         )
@@ -2313,16 +2292,6 @@ class EditWindowController {
         }
     }
 
-    private func upload() {
-        guard !deferUntilWindowCaptureReady(.upload) else { return }
-        canvasView?.commitActiveTextEditing()
-        guard let finalImage = currentCompositeImage() else { return }
-        let targetScreen = screen
-        tearDown()
-        onComplete(nil)
-        UploadManager.shared.upload(image: finalImage, on: targetScreen)
-    }
-
     /// Text-recognition action: exits the selection/editor, then opens the OCR
     /// panel anchored to the original selection. Uses the raw capture (no
     /// annotations) so recognition is not polluted by drawn marks.
@@ -2498,15 +2467,6 @@ class EditWindowController {
         requestFocusReturn()
     }
 
-    private func toolUsesPickedColorSwatch(_ tool: EditTool) -> Bool {
-        switch tool {
-        case .rectangle, .ellipse, .line, .arrow, .pen, .marker, .numbered, .text:
-            return true
-        default:
-            return false
-        }
-    }
-
     private func setShapeFillMode(_ mode: ShapeFillMode) {
         currentShapeFillMode = mode
         canvasView?.currentShapeFillMode = mode
@@ -2587,21 +2547,6 @@ class EditWindowController {
         let g = Int(round(max(0, min(1, rgb.greenComponent)) * 255))
         let b = Int(round(max(0, min(1, rgb.blueComponent)) * 255))
         return String(format: "#%02X%02X%02X", r, g, b)
-    }
-
-    /// Trigger the system color sampler (loupe). The picked color's hex is
-    /// copied to the clipboard and the color becomes the toolbar ink-bottle
-    /// color for color-capable tools. It does not directly change the active
-    /// tool color.
-    private func runColorPicker() {
-        canvasView?.commitActiveTextEditing()
-        ColorPickerRunner.shared.run(on: screen) { [weak self] swatchColor, _ in
-            guard let self else { return }
-            self.pickedColorSwatch = swatchColor
-            if self.toolUsesPickedColorSwatch(self.activeTool) {
-                self.showSubToolbar(for: self.activeTool)
-            }
-        }
     }
 
     private func showInsertImageMenu() {
@@ -2722,10 +2667,6 @@ class EditWindowController {
             if result.count == recentEmojiLimit { break }
         }
         return result
-    }
-
-    private func cancelActiveColorSampler() {
-        ColorPickerRunner.shared.cancel()
     }
 
     func confirmFromKeyboard() {
@@ -2931,7 +2872,6 @@ class EditWindowController {
         }
         moveSelectionStartRect = nil
         dismissQRCodeOverlay()
-        cancelActiveColorSampler()
         isScrollCapturing = false
         isScrollCaptureFinalizing = false
         scrollCaptureSessionID = nil
@@ -3444,12 +3384,6 @@ class ToolbarView: FloatingToolbarView {
         btn.target = self
         btn.action = #selector(buttonTapped(_:))
         btn.tag = index
-        // Upload is unavailable until an upload provider is configured.
-        if id == .upload {
-            let hasProvider = Defaults.hasUsableUploadProvider
-            btn.isEnabled = hasProvider
-            btn.alphaValue = hasProvider ? 1.0 : 0.35
-        }
         return btn
     }
 
@@ -4392,15 +4326,10 @@ private class ColorSizeSubToolbar: FloatingToolbarView {
     private let sizes: [CGFloat]
     private let sizeMinValue: CGFloat
     private let sizeMaxValue: CGFloat
-    private let dynamicColor: NSColor?
     private let showsShapeFillModes: Bool
     private let showsShapeStrokeStyles: Bool
     private let shapeStrokePreviewShape: ShapeStrokePreviewShape
-    private let baseColors: [NSColor] = EditorStyleDefaults.paletteColors
-    private var colors: [NSColor] {
-        guard let dynamicColor else { return baseColors }
-        return baseColors + [dynamicColor]
-    }
+    private let colors = EditorStyleDefaults.paletteColors
 
     private static let leadingPad: CGFloat = 12
     private static let sizeSliderWidth: CGFloat = 136
@@ -4418,7 +4347,6 @@ private class ColorSizeSubToolbar: FloatingToolbarView {
 
     static func preferredWidth(
         sizes: [CGFloat],
-        dynamicColor: NSColor?,
         showsShapeFillModes: Bool,
         showsArrowStyles: Bool = false,
         showsShapeStrokeStyles: Bool = false,
@@ -4442,8 +4370,7 @@ private class ColorSizeSubToolbar: FloatingToolbarView {
             x += 8 + 1 + 9
         }
 
-        let colorCount = baseColorCount + (dynamicColor == nil ? 0.0 : 1.0)
-        x += colorCount * swatchSize + max(colorCount - 1, 0) * swatchGap
+        x += baseColorCount * swatchSize + max(baseColorCount - 1, 0) * swatchGap
 
         if showsShapeFillModes {
             x += separatorGap + 1 + arrowStyleGap
@@ -4466,7 +4393,6 @@ private class ColorSizeSubToolbar: FloatingToolbarView {
         frame: NSRect,
         sizes: [CGFloat] = [2, 4, 6],
         currentColor: NSColor = .red,
-        dynamicColor: NSColor? = nil,
         currentSize: CGFloat = 3.0,
         sizeMinValue: CGFloat = CGFloat(Defaults.editorLineWidthMin),
         sizeMaxValue: CGFloat = CGFloat(Defaults.editorLineWidthMax),
@@ -4479,7 +4405,6 @@ private class ColorSizeSubToolbar: FloatingToolbarView {
         self.sizeMinValue = sizeMinValue
         self.sizeMaxValue = max(sizeMinValue, sizeMaxValue)
         self.currentColor = currentColor
-        self.dynamicColor = dynamicColor
         self.currentSize = min(max(currentSize, sizeMinValue), max(sizeMinValue, sizeMaxValue))
         self.currentShapeFillMode = shapeFillMode
         self.currentShapeStrokeStyle = shapeStrokeStyle
@@ -4585,22 +4510,13 @@ private class ColorSizeSubToolbar: FloatingToolbarView {
             x += 1 + 9
         }
 
-        // Color swatches. The dynamic picked color uses an ink-bottle glyph
-        // rather than another static-looking palette dot.
         let swatchSize: CGFloat = ColorSizeSubToolbar.swatchSize
         for (i, color) in colors.enumerated() {
-            let style: ColorSwatchView.Style = (dynamicColor != nil && i == baseColors.count)
-                ? .pickedInkBottle
-                : .paletteDot
             let swatch = ColorSwatchView(
                 frame: NSRect(x: x, y: midY - swatchSize/2, width: swatchSize, height: swatchSize),
                 color: color,
-                isSelected: colorsMatch(color, currentColor),
-                style: style
+                isSelected: colorsMatch(color, currentColor)
             )
-            if style == .pickedInkBottle {
-                swatch.hoverTip = L10n.tipPickedInkBottle
-            }
             swatch.itemIndex = i
             let click = NSClickGestureRecognizer(target: self, action: #selector(colorTapped(_:)))
             swatch.addGestureRecognizer(click)
@@ -4883,12 +4799,7 @@ private class TextSubToolbar: FloatingToolbarView {
     private var strokeCheckbox: NSButton!
     private var calloutCheckbox: NSButton!
 
-    private let dynamicColor: NSColor?
-    private let baseColors: [NSColor] = EditorStyleDefaults.paletteColors
-    private var colors: [NSColor] {
-        guard let dynamicColor else { return baseColors }
-        return baseColors + [dynamicColor]
-    }
+    private let colors = EditorStyleDefaults.paletteColors
 
     // Layout metrics, shared between `setup()` and `preferredWidth` so the
     // view is always wide enough for everything it lays out.
@@ -4914,10 +4825,9 @@ private class TextSubToolbar: FloatingToolbarView {
     }
 
     /// Right edge of the last color swatch — the swatch row's extent.
-    private static func swatchRowEnd(hasDynamicColor: Bool) -> CGFloat {
-        let colorCount = baseColorCount + (hasDynamicColor ? 1.0 : 0.0)
+    private static var swatchRowEnd: CGFloat {
         return sliderStartX + sliderWidth + 8 + 1 + 9
-            + colorCount * swatchSize + max(colorCount - 1, 0) * swatchGap
+            + baseColorCount * swatchSize + max(baseColorCount - 1, 0) * swatchGap
     }
 
     private static func checkboxWidth(title: String) -> CGFloat {
@@ -4934,8 +4844,8 @@ private class TextSubToolbar: FloatingToolbarView {
         checkboxWidth(title: L10n.textCalloutEffect)
     }
 
-    static func preferredWidth(dynamicColor: NSColor?) -> CGFloat {
-        swatchRowEnd(hasDynamicColor: dynamicColor != nil)
+    static func preferredWidth() -> CGFloat {
+        swatchRowEnd
             + separatorGap + 1 + checkboxGap
             + strokeCheckboxWidth + checkboxGap + calloutCheckboxWidth
             + trailingPad
@@ -4946,14 +4856,12 @@ private class TextSubToolbar: FloatingToolbarView {
         currentColor: NSColor,
         currentFontSize: CGFloat,
         currentFontName: String?,
-        dynamicColor: NSColor? = nil,
         strokeEnabled: Bool,
         calloutEnabled: Bool
     ) {
         self.currentColor = currentColor
         self.currentFontSize = currentFontSize
         self.currentFontName = currentFontName
-        self.dynamicColor = dynamicColor
         self.strokeEnabled = strokeEnabled
         self.calloutEnabled = calloutEnabled
         super.init(frame: frame, cornerRadius: frame.height / 2)
@@ -5019,22 +4927,13 @@ private class TextSubToolbar: FloatingToolbarView {
         controls.addSubview(sep)
         x += 1 + 9
 
-        // Color swatches. The dynamic picked color uses an ink-bottle glyph
-        // rather than another static-looking palette dot.
         let swatchSize: CGFloat = TextSubToolbar.swatchSize
         for (i, color) in colors.enumerated() {
-            let style: ColorSwatchView.Style = (dynamicColor != nil && i == baseColors.count)
-                ? .pickedInkBottle
-                : .paletteDot
             let swatch = ColorSwatchView(
                 frame: NSRect(x: x, y: midY - swatchSize / 2, width: swatchSize, height: swatchSize),
                 color: color,
-                isSelected: colorsMatch(color, currentColor),
-                style: style
+                isSelected: colorsMatch(color, currentColor)
             )
-            if style == .pickedInkBottle {
-                swatch.hoverTip = L10n.tipPickedInkBottle
-            }
             swatch.itemIndex = i
             let click = NSClickGestureRecognizer(target: self, action: #selector(colorTapped(_:)))
             swatch.addGestureRecognizer(click)
@@ -5310,24 +5209,15 @@ private final class ArrowStyleButtonView: StyleOptionView {
 // MARK: - Color Swatch View
 
 private class ColorSwatchView: NSView {
-    enum Style {
-        case paletteDot
-        case pickedInkBottle
-    }
-
     let color: NSColor
-    private let style: Style
-    var hoverTip: String?
-    var isSelected: Bool = false {
+    var isSelected: Bool {
         didSet { needsDisplay = true }
     }
     var itemIndex: Int = 0
-    private var hoverTrackingArea: NSTrackingArea?
 
-    init(frame: NSRect, color: NSColor, isSelected: Bool, style: Style = .paletteDot) {
+    init(frame: NSRect, color: NSColor, isSelected: Bool) {
         self.color = color
         self.isSelected = isSelected
-        self.style = style
         super.init(frame: frame)
     }
 
@@ -5337,50 +5227,7 @@ private class ColorSwatchView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let area = hoverTrackingArea {
-            removeTrackingArea(area)
-        }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(area)
-        hoverTrackingArea = area
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        super.mouseEntered(with: event)
-        guard let tip = hoverTip, let window else { return }
-        let frameInWindow = convert(bounds, to: nil)
-        let frameOnScreen = window.convertToScreen(frameInWindow)
-        ToolTipWindow.show(text: tip, anchor: frameOnScreen)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        ToolTipWindow.hide()
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        ToolTipWindow.hide()
-        super.mouseDown(with: event)
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if window == nil { ToolTipWindow.hide() }
-    }
-
     override func draw(_ dirtyRect: NSRect) {
-        if style == .pickedInkBottle {
-            drawInkBottle()
-            return
-        }
-
         // Draw color circle
         let inset: CGFloat = isSelected ? 1 : 2
         let path = NSBezierPath(ovalIn: bounds.insetBy(dx: inset, dy: inset))
@@ -5403,93 +5250,11 @@ private class ColorSwatchView: NSView {
             border.stroke()
         }
     }
-
-    private func drawInkBottle() {
-        let unit = min(bounds.width, bounds.height) / 18.0
-        let origin = NSPoint(
-            x: bounds.midX - 9.0 * unit,
-            y: bounds.midY - 9.0 * unit
-        )
-
-        func rect(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> NSRect {
-            NSRect(
-                x: origin.x + x * unit,
-                y: origin.y + y * unit,
-                width: width * unit,
-                height: height * unit
-            )
-        }
-
-        if isSelected {
-            let ring = NSBezierPath(ovalIn: bounds.insetBy(dx: 0.75, dy: 0.75))
-            accentGreen.setStroke()
-            ring.lineWidth = 2
-            ring.stroke()
-        }
-
-        let bodyRect = rect(4.5, 4.0, 9.0, 9.8)
-        let bodyPath = NSBezierPath(
-            roundedRect: bodyRect,
-            xRadius: 2.2 * unit,
-            yRadius: 2.2 * unit
-        )
-
-        AdaptiveChrome.subtleFill.setFill()
-        bodyPath.fill()
-
-        let inkPath = NSBezierPath()
-        let inset = 0.75 * unit
-        let inkBottom = bodyRect.minY + inset
-        let inkLeft = bodyRect.minX + inset
-        let inkRight = bodyRect.maxX - inset
-        let inkTop = bodyRect.minY + bodyRect.height * 0.58
-        inkPath.move(to: NSPoint(x: inkLeft, y: inkBottom))
-        inkPath.line(to: NSPoint(x: inkLeft, y: inkTop))
-        inkPath.curve(
-            to: NSPoint(x: inkRight, y: inkTop - 0.2 * unit),
-            controlPoint1: NSPoint(x: bodyRect.minX + bodyRect.width * 0.36, y: inkTop + 1.15 * unit),
-            controlPoint2: NSPoint(x: bodyRect.minX + bodyRect.width * 0.62, y: inkTop - 1.05 * unit)
-        )
-        inkPath.line(to: NSPoint(x: inkRight, y: inkBottom))
-        inkPath.close()
-
-        NSGraphicsContext.current?.saveGraphicsState()
-        bodyPath.addClip()
-        color.setFill()
-        inkPath.fill()
-        NSGraphicsContext.current?.restoreGraphicsState()
-
-        let neckRect = rect(7.0, 12.7, 4.0, 2.0)
-        let neckPath = NSBezierPath(roundedRect: neckRect, xRadius: 0.7 * unit, yRadius: 0.7 * unit)
-        NSColor.secondaryLabelColor.setFill()
-        neckPath.fill()
-
-        let capRect = rect(6.2, 14.2, 5.6, 1.8)
-        let capPath = NSBezierPath(roundedRect: capRect, xRadius: 0.8 * unit, yRadius: 0.8 * unit)
-        NSColor.labelColor.setFill()
-        capPath.fill()
-
-        let highlight = NSBezierPath()
-        highlight.move(to: NSPoint(x: bodyRect.minX + 2.5 * unit, y: bodyRect.minY + 2.1 * unit))
-        highlight.line(to: NSPoint(x: bodyRect.minX + 2.5 * unit, y: bodyRect.maxY - 2.3 * unit))
-        NSColor.quaternaryLabelColor.setStroke()
-        highlight.lineWidth = 1
-        highlight.lineCapStyle = .round
-        highlight.stroke()
-
-        NSColor.secondaryLabelColor.setStroke()
-        bodyPath.lineWidth = 1
-        bodyPath.stroke()
-
-        AdaptiveChrome.border.setStroke()
-        capPath.lineWidth = 0.6
-        capPath.stroke()
-    }
 }
 
 // MARK: - HUD Slider
 
-final class HUDSlider: NSControl {
+private final class HUDSlider: NSControl {
     static let preferredHeight: CGFloat = 24
     private let slider = EditorTrackingSlider()
     private let readout = NSTextField(labelWithString: "")
@@ -5521,13 +5286,6 @@ final class HUDSlider: NSControl {
     override var toolTip: String? {
         didSet { slider.toolTip = toolTip }
     }
-    override var isEnabled: Bool {
-        didSet { slider.isEnabled = isEnabled }
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: Self.preferredHeight)
-    }
 
     init(
         frame: NSRect = .zero,
@@ -5540,7 +5298,6 @@ final class HUDSlider: NSControl {
         super.init(frame: frame)
         self.target = target
         self.action = action
-        setAccessibilityElement(false)
 
         slider.minValue = minValue
         slider.maxValue = maxValue

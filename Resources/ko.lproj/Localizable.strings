@@ -17,10 +17,7 @@
 "showCopyToast" = "복사 확인 알림 표시";
 "showCopyToastHint" = "끄면 클립보드에 복사할 때 알림이 표시되지 않습니다";
 "historyCacheToggleLabel" = "스크린샷 캐시";
-"historyCacheToggleHint" = "최근 스크린샷, 선택한 색상, 업로드 결과를 저장해 기록 패널에서 빠르게 다시 복사할 수 있습니다";
-"clipboardTextCacheToggleLabel" = "클립보드 텍스트 및 파일 기록";
-"clipboardTextCacheToggleHint" = "파일을 복제하지 않고 텍스트와 원본 파일 참조 저장";
-"clipboardTextHistoryLimitLabel" = "텍스트 / 파일 기록 한도";
+"historyCacheToggleHint" = "최근 스크린샷과 화면 녹화를 저장해 기록 패널에서 빠르게 다시 사용";
 "historyCacheLabel" = "이미지와 미디어 기록 한도";
 "historyPanelDisplayModeLabel" = "기록 패널 표시 방식";
 "historyPanelDisplayModeHint" = "팝업 또는 노치로 기록 보기";
@@ -68,8 +65,8 @@
 "pinToolbarCopy" = "고정 이미지 복사";
 "pinToolbarDrag" = "고정 이미지 드래그";
 "pinToolbarEdit" = "고정 이미지 편집";
-"pinToolbarEditText" = "텍스트 편집";
 "pinToolbarCloseText" = "닫기";
+"pinToolbarEditText" = "텍스트 편집";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "선택 이미지 편집";
@@ -88,8 +85,6 @@
 "recordShortcutDefaultDisplay" = "설정 안 됨";
 "fullScreenScreenshotShortcutHeader" = "전체 화면 스크린샷";
 "fullScreenScreenshotShortcutDefaultDisplay" = "설정 안 됨";
-"colorPickerShortcutHeader" = "색상 추출기";
-"colorPickerShortcutDefaultDisplay" = "설정 안 됨";
 
 /* Copy-to-clipboard shortcut (editor confirm) */
 "clipboardShortcutHeader" = "클립보드에 복사";
@@ -124,13 +119,11 @@
 "shortcutConflictScreenshotTranslation" = "이 키 조합은 이미 스크린샷 번역 단축키에 사용되고 있습니다. 다른 조합을 선택하세요";
 "shortcutConflictRecord" = "이 키 조합은 이미 녹화 단축키에 사용되고 있습니다. 다른 조합을 선택하세요";
 "shortcutConflictFullScreenScreenshot" = "이 키 조합은 이미 전체 화면 스크린샷 단축키에 사용되고 있습니다. 다른 조합을 선택하세요";
-"shortcutConflictColorPicker" = "이 키 조합은 이미 색상 추출기 단축키에 사용되고 있습니다. 다른 조합을 선택하세요";
 
 /* Menu bar */
 "takeScreenshot" = "스크린샷";
 "takeFullScreenScreenshot" = "전체 화면 스크린샷";
 "record" = "녹화";
-"colorPicker" = "색상 추출기";
 "settings" = "설정";
 "quitApp" = "capcap 종료";
 "historyMenu" = "기록";
@@ -152,33 +145,17 @@
 "historyPanelFavoriteFailed" = "즐겨찾기를 변경할 수 없습니다";
 "historyDeletedSkippingFavorites" = "항목 %d개 삭제, 즐겨찾기 %d개 건너뜀";
 "historyPanelFilterAll" = "전체";
+"historyPanelFilterFavorites" = "즐겨찾기";
 "historyPanelFilterScreenshots" = "스크린샷";
 "historyPanelFilterGIF" = "GIF";
 "historyPanelFilterMP4" = "MP4";
-"historyPanelFilterColors" = "색상";
-"historyPanelFilterText" = "텍스트";
-"historyPanelSearchColorsAndText" = "색상, 텍스트 및 파일 검색";
-"historyPanelSearchColors" = "색상 검색";
-"historyPanelSearchText" = "텍스트 검색";
-"historyPanelClearSearch" = "검색 지우기";
-"historyPanelSearchNoResults" = "일치하는 기록 없음";
-"historyPreviewCopyText" = "텍스트 복사";
-"historyPreviewTranslateText" = "텍스트 번역";
-"historyPreviewConvertToQRCode" = "QR 코드로 변환";
-"historyPreviewQRCodeTooLong" = "텍스트가 너무 길어 QR 코드로 변환할 수 없습니다";
-"historyPreviewOriginalText" = "원문";
-"historyPreviewQRCodeTitle" = "텍스트 QR 코드";
-"historyPanelCopyHint" = "클릭해 복사";
 "historyPanelCopyDragHint" = "클릭해 복사 · 앱으로 드래그";
-"historyPanelCopyMarkdownLink" = "MD 링크 복사";
-"historyPanelCopyPlainLink" = "일반 링크 복사";
 "historyPanelEmpty" = "기록 없음";
 "historyPanelShortcutGuide" = "키보드 단축키";
 "historyPanelShortcutGuideHide" = "기록으로 돌아가기";
 "historyPanelShortcutKeyClick" = "클릭";
 "historyPanelShortcutKeyDrag" = "드래그";
 "historyPanelShortcutKeySpace" = "스페이스";
-"historyPanelShortcutSearch" = "검색 시작 또는 종료";
 "historyPanelShortcutSwitchFilter" = "카테고리 전환";
 "historyPanelShortcutSwitchItem" = "이전 또는 다음 항목으로 전환";
 "historyPanelShortcutToggleSelection" = "항목 하나 선택 또는 해제";
@@ -193,9 +170,6 @@
 "historyPanelShortcutCopyPreview" = "미리보기 내용 복사";
 "historyPanelShortcutEditImage" = "이미지 편집";
 "historyPanelShortcutPinImage" = "이미지 고정";
-"historyPanelShortcutUploadImage" = "이미지 업로드";
-"historyPanelShortcutTranslateText" = "텍스트 번역";
-"historyPanelShortcutQRCode" = "QR 코드 만들기";
 "historyPanelShortcutToggleGuide" = "키보드 단축키 표시 또는 숨기기";
 
 /* Cursor chip */
@@ -249,7 +223,6 @@
 "recordingStop" = "녹화 중지";
 "recordingPause" = "일시 정지";
 "recordingResume" = "재개";
-"colorCopied" = "색상 %@ 복사됨";
 "qrCodeCopied" = "QR 코드 내용을 복사함";
 "qrCodeNotFound" = "QR 코드를 찾을 수 없음";
 
@@ -275,8 +248,6 @@
 "tipMoreEmoji" = "이모지 더 보기";
 "tipMoreBeautifyPresets" = "더 많은 꾸미기 프리셋";
 "tipInsertImage" = "이미지 삽입";
-"tipColorPicker" = "색상 추출기";
-"tipPickedInkBottle" = "색상 추출기로 잉크병에 색상 추출";
 "tipUndo" = "실행 취소";
 "tipRedo" = "다시 실행";
 "tipMoveSelection" = "선택 영역 이동";
@@ -351,7 +322,6 @@
 "settingsTabGeneral" = "일반";
 "settingsTabShortcuts" = "단축키";
 "settingsTabPermissions" = "권한";
-"settingsTabUpload" = "이미지 호스트";
 "settingsTabAbout" = "정보";
 "settingsTabTranslation" = "번역";
 "settingsTabToolbar" = "도구 모음";
@@ -385,9 +355,6 @@
 "aboutTagline" = "메뉴 막대 스크린샷 도구";
 "aboutLicense" = "라이선스";
 "aboutSourceCode" = "소스 코드";
-"aboutStarOnGitHub" = "GitHub에서 별 누르기 🌟";
-"aboutFeatureRequest" = "기능 요청";
-"aboutBugReport" = "버그 신고";
 "aboutUpdateTitle" = "업데이트";
 "aboutErrorLog" = "오류 로그";
 "aboutErrorLogNoCrash" = "오류 로그 없음";
@@ -397,7 +364,7 @@
 "aboutErrorLogReveal" = "Finder에 표시";
 "aboutErrorLogRefresh" = "로그 새로고침";
 "aboutErrorLogClear" = "로그 지우기";
-"aboutErrorLogEmptyBody" = "capcap에 기록된 오류 로그가 아직 없습니다. 앱이 멈추거나 충돌하면 여기로 돌아와 로그를 복사해 버그 신고에 사용하세요";
+"aboutErrorLogEmptyBody" = "capcap에 기록된 오류 로그가 아직 없습니다";
 
 /* Updates — About pane */
 "checkForUpdates" = "업데이트 확인";
@@ -447,26 +414,9 @@
 "quitConfirmAction" = "종료";
 "quitConfirmCancel" = "취소";
 
-/* Upload — toolbar / toast / progress */
-"tipUpload" = "이미지 호스트에 업로드";
-"uploadingTitle" = "업로드 중";
-"uploadCopied" = "이미지 URL이 복사됨";
-"uploadCopiedMarkdown" = "Markdown 링크가 복사됨";
-"uploadNoProvider" = "먼저 설정에서 이미지 호스트를 구성하세요";
-"uploadFailedPrefix" = "업로드 실패";
 
-/* Upload — settings tab */
-"uploadDefaultProvider" = "기본 이미지 호스트";
-"uploadDefaultNone" = "비활성화됨";
-"uploadSetDefaultButton" = "기본값으로 설정";
-"uploadSaveButton" = "저장";
-"uploadClearButton" = "지우기";
-"uploadSavedToast" = "설정이 저장됨";
-"uploadCurrentDefault" = "현재 기본값";
-"uploadMarkdownToggleTitle" = "Markdown 링크로 복사";
-"uploadMarkdownToggleSubtitle" = "켜면 업로드 후 Markdown 이미지 태그(![](url))를 복사하고, 끄면 일반 URL을 복사합니다. 기록 패널에서 클라우드 이미지는 클릭 시 이 설정을 따르며, 호버 버튼으로 MD 또는 일반 링크를 선택할 수 있습니다";
 "filenameRuleTitle" = "파일 이름 규칙";
-"filenameRuleSubtitle" = "이미지 업로드, 이미지 저장 기본 이름, 녹화 저장 기본 이름을 제어합니다. 확장자는 자동으로 추가됩니다";
+"filenameRuleSubtitle" = "이미지와 화면 녹화의 기본 저장 파일 이름을 설정합니다. 확장자는 자동으로 추가됩니다";
 "filenameRulePresetLabel" = "프리셋";
 "filenameRulePresetCustom" = "사용자 지정";
 "filenameRulePresetShort" = "짧게";
@@ -484,55 +434,10 @@
 "filenameRuleVariableSize" = "크기";
 "filenameRulePreview" = "%@";
 
-/* Upload — provider field labels */
-"uploadFieldBucket" = "버킷";
-"uploadFieldBucketSpace" = "버킷";
-"uploadFieldRegion" = "리전";
-"uploadFieldRegionOptional" = "선택 리전";
-"uploadFieldPathOptional" = "선택 경로";
-"uploadFieldCustomUrlOptional" = "선택 사용자 도메인";
-"uploadFieldPublicDomain" = "공개 도메인";
-"uploadFieldEndpointArea" = "엔드포인트";
-"uploadFieldEndpointOptional" = "선택 엔드포인트";
-"uploadFieldCustomEndpoint" = "업로드 엔드포인트";
-"uploadFieldCustomFileField" = "파일 필드 이름";
-"uploadFieldCustomHeadersOptional" = "헤더 선택 사항";
-"uploadFieldCustomResponsePathOptional" = "URL 경로 선택 사항";
-"uploadFieldAccountId" = "계정 ID";
-"uploadTestImageFailed" = "테스트 이미지를 생성할 수 없습니다";
 
-/* Upload — provider names */
-"providerTencentCOS" = "Tencent COS";
-"providerQiniuKodo" = "Qiniu Kodo";
-"providerCustomHTTP" = "사용자 지정 HTTP 호스트";
-"providerAliyunOSS" = "Aliyun OSS";
 
-/* Upload — errors */
-"uploadErrMissingConfig" = "업로드 호스트가 설정되지 않음";
-"uploadErrInvalidConfigPrefix" = "잘못된 설정";
-"uploadErrNetworkPrefix" = "네트워크 오류";
-"uploadErrServerPrefix" = "업로드 실패 코드 %d";
-"uploadCustomInvalidEndpoint" = "HTTPS 또는 로컬 HTTP 엔드포인트를 입력하세요";
-"uploadCustomInvalidFileField" = "파일 필드 이름에 잘못된 문자가 있습니다";
-"uploadCustomInvalidHeader" = "헤더는 Header: Value 형식이어야 합니다";
-"uploadCustomResponseURLMissing" = "응답에서 유효한 이미지 URL을 찾지 못했습니다";
-"uploadErrUnexpectedResponsePrefix" = "예기치 않은 응답";
-"missingField" = "%@ 누락됨";
 
-/* Upload — test/validation pill */
-"uploadStatusUntested" = "테스트 안 됨";
-"uploadStatusTesting" = "테스트 중";
-"uploadStatusValid" = "활성";
-"uploadStatusInvalid" = "잘못된 설정";
 
-/* Upload — log lines */
-"uploadLogStartingTest" = "테스트 업로드 시작";
-"uploadLogConfigSaved" = "설정이 저장됨";
-"uploadLogMissingFields" = "필수 항목 누락: %@";
-"uploadLogTestSucceeded" = "테스트 업로드 성공: %@";
-"uploadLogTestFailed" = "테스트 업로드 실패: %@";
-"uploadLogProviderDisabled" = "이 이미지 호스트가 비활성화됨";
-"uploadLogConfigCleared" = "설정이 지워짐";
 
 /* Permissions — status label */
 "permissionGranted" = "허용됨";
@@ -600,54 +505,16 @@
 "translationErrBadEndpoint" = "잘못된 엔드포인트";
 "translationErrBadResponse" = "예기치 않은 응답";
 
-/* Image Merge */
-"imageMergeShortcutHeader" = "이미지 병합";
-"imageMergeShortcutDefaultDisplay" = "설정 안 됨";
-"shortcutConflictImageMerge" = "이 키 조합은 이미지 병합 단축키에서 이미 사용 중입니다. 다른 조합을 선택하세요";
-"mergeImages" = "이미지 병합";
-"mergeEditExitHint" = "병합된 이미지를 편집 중입니다. X를 눌러 편집을 종료";
-"imageMergeNeedTwoImages" = "병합하려면 Finder 이미지 두 개 이상을 선택하세요";
-"imageMergeSomeImagesSkipped" = "일부 이미지를 불러오지 못해 건너뜀";
-"imageMergeNoClipboardImage" = "클립보드에 이미지가 없습니다";
-"imageMergeFailed" = "이미지 병합 실패";
-"imageMergeSaved" = "병합된 이미지 저장됨";
-"imageMergeWindowTitle" = "이미지 병합";
-"imageMergeSources" = "소스";
-"imageMergeAddFiles" = "파일 추가";
-"imageMergeAddFromClipboard" = "클립보드에서 추가";
-"imageMergeImageList" = "이미지";
-"imageMergeTemplate" = "배열 방식";
-"imageMergeTemplateHorizontal" = "가로";
-"imageMergeTemplateVertical" = "세로";
-"imageMergeTemplateGrid" = "그리드";
-"imageMergeTemplateLongStitch" = "긴 이미지 연결";
-"imageMergeLayout" = "레이아웃";
-"imageMergeSpacing" = "간격";
-"imageMergeMargin" = "바깥 여백";
-"imageMergeCornerRadius" = "모서리 반경";
-"imageMergeBackground" = "배경";
-"imageMergeTransparent" = "투명";
-"imageMergeSolid" = "단색";
-"imageMergeOutput" = "출력";
-"imageMergeCopy" = "복사";
-"imageMergeSave" = "저장";
-"imageMergeContinueEditing" = "편집";
-"imageMergeClose" = "닫기";
-"imageMergeEmptyTitle" = "병합할 이미지를 놓으세요";
-"imageMergeEmptyBody" = "파일을 추가하거나 클립보드에서 가져오거나 이미지를 여기로 드래그";
-"imageMergeClipboardSourceName" = "클립보드 이미지";
 
 /* Screenshot quality */
 "screenshotQualityTitle" = "스크린샷 품질";
-"screenshotQualitySubtitle" = "업로드, 저장, 복사 전에 선택한 품질로 처리하며 기본값은 원본";
-"screenshotQualityUploadLabel" = "업로드";
+"screenshotQualitySubtitle" = "저장하거나 복사할 때 선택한 품질을 적용하며 기본값은 원본";
 "screenshotQualitySaveLabel" = "파일로 저장";
 "screenshotQualityClipboardLabel" = "클립보드에 복사";
 "screenshotQualityOriginal" = "원본";
 "screenshotQualityOriginalHint" = "PNG 원본 크기와 무손실 품질, 가장 큰 파일";
 "screenshotQualityCompressed" = "압축";
 "screenshotQualityCompressedHint" = "원본 크기를 유지하고 로컬에서 PNG 압축";
-"screenshotQualityCompressingUpload" = "압축 후 업로드 중";
 "screenshotQualityCompressingSave" = "압축 후 저장 중";
 "screenshotQualityCompressingClipboard" = "압축 후 복사 중";
 "screenshotCompressionFailed" = "이미지 압축 실패";
@@ -685,33 +552,9 @@
 
 /* Magnifier lens panel */
 "magnifierLensPanelCoordinatesLabel" = "좌표";
-"magnifierLensPanelColorValueLabel" = "색상";
 "magnifierLensPanelCoordinates" = "좌표: %@, %@";
-"magnifierLensPanelHex" = "HEX: %@";
-"magnifierLensPanelRgb" = "RGB: %@";
-"magnifierLensPanelRgbString" = "rgb(%d, %d, %d)";
-"magnifierLensPanelCopyHint" = "색상 복사(C)";
-"magnifierLensPanelFormatHint" = "색상 형식(F)";
 "magnifierLensPanelAspectFree" = "자유";
 "magnifierLensPanelAspectHint" = "캡처 비율(R)";
-/* 파일 업로드 */
-"fileUploadShortcutHeader" = "파일 업로드";
-"finderUploadShortcutDefaultDisplay" = "설정 안 함";
-"shortcutConflictFileUpload" = "이 키 조합은 파일 업로드 단축키에서 이미 사용 중입니다. 다른 조합을 선택하세요";
-"uploadFilesMenu" = "파일 업로드";
-"finderUploadDialogTitle" = "이미지 호스트에 업로드";
-"finderUploadDialogHeading" = "업로드할 파일";
-"finderUploadSummary" = "%d개 파일 선택 · %@";
-"finderUploadSelectAll" = "전체 선택";
-"finderUploadAction" = "%d개 파일 업로드";
-"finderUploadRetryAction" = "%d개 파일 다시 시도";
-"finderUploadingProgress" = "업로드 중 %d/%d";
-"finderUploadSucceeded" = "업로드 완료";
-"finderUploadFailed" = "실패";
-"finderUploadErrorLogTitle" = "오류 로그";
-"finderUploadUnknownSize" = "크기 알 수 없음";
-"finderUploadReadFailed" = "파일을 읽을 수 없음 %@";
-"finderUploadCompleted" = "%d개 파일을 업로드하고 링크를 복사함";
 
 "historyNotchTriggerLabel" = "노치 활성화 방식";
 "historyNotchTriggerHover" = "마우스를 올려 열기";
@@ -724,7 +567,6 @@
 "settingsGeneralHistory" = "기록";
 "settingsGeneralFiles" = "파일 및 출력";
 
-"historyPreviewTextSaveFailed" = "텍스트를 저장하지 못했습니다, 다시 시도해 주세요";
 
 "windowCapturePreparing" = "스크린샷 준비 중";
 
@@ -754,25 +596,8 @@
 "ocrTimeoutError" = "OCR 시간 초과 · 서비스를 확인하거나 다시 시도하세요";
 "ocrRequestFailed" = "OCR 요청 실패";
 
-"historyPanelFilterFiles" = "파일";
 
 "historyPanelFolder" = "폴더";
-
-"historyPanelSearchFiles" = "파일 이름 및 경로 검색";
-
-"historyPanelSourceUnavailable" = "원본 파일을 사용할 수 없음";
-
-"historyPanelSourceUnavailableHint" = "일부 원본 파일이 삭제되었거나 오프라인이거나 다운로드되지 않음";
-
-"historyFilePreviewPrevious" = "이전 파일";
-
-"historyFilePreviewNext" = "다음 파일";
-
-"historyFilePreviewLoading" = "미리보기 로드 중";
-
-"historyFilePreviewRetry" = "다시 확인";
-
-"historyFilePreviewUnavailable" = "이 파일을 미리 볼 수 없음";
 "editorStrokeWidth" = "선 두께";
 "editorFontSize" = "글꼴 크기";
 "ocrPinPanel" = "패널 고정";

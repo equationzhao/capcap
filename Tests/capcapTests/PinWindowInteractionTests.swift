@@ -149,7 +149,7 @@ final class PinWindowInteractionTests: XCTestCase {
             )
         )
         toolbar.layoutSubtreeIfNeeded()
-        let buttons = toolbar.subviews.compactMap { $0 as? NSButton }
+        let buttons = toolbar.controls.subviews.compactMap { $0 as? NSButton }
         let labels = buttons.compactMap { $0.accessibilityLabel() }
         let copyButton = try XCTUnwrap(
             buttons.first { $0.accessibilityLabel() == L10n.pinToolbarCopy }
@@ -240,7 +240,7 @@ final class PinWindowInteractionTests: XCTestCase {
         window.contentView = toolbar
         toolbar.layoutSubtreeIfNeeded()
         let dragButton = try XCTUnwrap(
-            toolbar.subviews
+            toolbar.controls.subviews
                 .compactMap { $0 as? NSButton }
                 .first { $0.accessibilityLabel() == L10n.pinToolbarDrag }
         )
@@ -325,7 +325,7 @@ final class PinWindowInteractionTests: XCTestCase {
             NSSize(width: width, height: PinToolbarView.preferredHeight)
         )
         toolbar.layoutSubtreeIfNeeded()
-        let visibleLabels = toolbar.subviews
+        let visibleLabels = toolbar.controls.subviews
             .compactMap { $0 as? NSButton }
             .filter { !$0.isHidden }
             .compactMap { $0.accessibilityLabel() }

@@ -1216,14 +1216,12 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
     private enum Mode {
         case textRecognition
         case screenshotTranslation
-        case textTranslation
     }
 
     private static var current: OCRTranslatePanel?
     private static let topMargin: CGFloat = 24
 
     private let screenshot: NSImage
-    private let sourceText: String?
     private let anchorScreen: NSScreen
     private let panelWidth: CGFloat
     private let mode: Mode
@@ -1288,35 +1286,11 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
         present(image: image, anchorRect: anchorRect, screen: screen, mode: .screenshotTranslation)
     }
 
-    static func presentTextTranslation(text: String, screen: NSScreen) {
-        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedText.isEmpty else { return }
-        current?.dismiss()
-        let anchorRect = NSRect(
-            x: screen.visibleFrame.midX - 250,
-            y: screen.visibleFrame.maxY,
-            width: 500,
-            height: 0
-        )
-        let panel = OCRTranslatePanel(
-            image: NSImage(size: NSSize(width: 1, height: 1)),
-            sourceText: text,
-            anchorRect: anchorRect,
-            screen: screen,
-            mode: .textTranslation
-        )
-        current = panel
-        panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        panel.runOCR()
-    }
-
     private static func present(image: NSImage, anchorRect: NSRect, screen: NSScreen, mode: Mode,
                                 initialResult: OCRResult? = nil) {
         current?.dismiss()
         let panel = OCRTranslatePanel(
             image: image,
-            sourceText: nil,
             anchorRect: anchorRect,
             screen: screen,
             mode: mode
@@ -1329,14 +1303,12 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
 
     private init(
         image: NSImage,
-        sourceText: String?,
         anchorRect: NSRect,
         screen: NSScreen,
         mode: Mode
     ) {
         let panelWidth = min(max(anchorRect.width, 360), 500)
         self.screenshot = image
-        self.sourceText = sourceText
         self.anchorScreen = screen
         self.panelWidth = panelWidth
         self.mode = mode
@@ -1450,9 +1422,6 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
         case .screenshotTranslation:
             buildScreenshotCard()
             buildTranslationCard()
-        case .textTranslation:
-            buildTextSourceCard()
-            buildTranslationCard()
         }
     }
 
@@ -1509,28 +1478,6 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
         textView.string = L10n.ocrRecognizing
         textView.textColor = .secondaryLabelColor
         ocrTextView = textView
-        inner.addArrangedSubview(scroll)
-        scroll.widthAnchor.constraint(equalTo: inner.widthAnchor).isActive = true
-
-        addStackRow(card)
-    }
-
-    private func buildTextSourceCard() {
-        let card = makeCard()
-        let inner = makeCardStack()
-        card.addSubview(inner)
-        pin(inner, to: card, inset: 12)
-
-        let title = makeLabel(
-            L10n.historyPreviewOriginalText,
-            size: 12,
-            weight: .semibold,
-            alpha: 0.92
-        )
-        inner.addArrangedSubview(title)
-
-        let (scroll, textView) = makeTextScroll(editable: false, height: 140)
-        textView.string = sourceText ?? ""
         inner.addArrangedSubview(scroll)
         scroll.widthAnchor.constraint(equalTo: inner.widthAnchor).isActive = true
 
@@ -1618,26 +1565,14 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
         ocrTextView?.textColor = .secondaryLabelColor
         ocrCopyButton?.isEnabled = false
         let screenshot = screenshot
-        let sourceText = sourceText
         let mode = mode
         ocrTask = Task { @MainActor [weak self] in
-            var text = ""
-            var lines: [RecognizedTextLine] = []
-            var provider: OCRProviderKind = .apple
+            let result: OCRResult
             do {
-                switch mode {
-                case .textRecognition, .screenshotTranslation:
-                    let result: OCRResult
-                    if let initialResult {
-                        result = initialResult
-                    } else {
-                        result = try await OCRService.recognizeResult(image: screenshot)
-                    }
-                    text = result.text
-                    lines = result.lines
-                    provider = result.provider
-                case .textTranslation:
-                    text = sourceText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if let initialResult {
+                    result = initialResult
+                } else {
+                    result = try await OCRService.recognizeResult(image: screenshot)
                 }
             } catch {
                 guard !Task.isCancelled, let self else { return }
@@ -1652,21 +1587,17 @@ final class OCRTranslatePanel: NSPanel, NSTextViewDelegate {
 
             guard !Task.isCancelled, let self else { return }
             self.ocrTask = nil
-            if mode == .textTranslation {
-                self.recognizedText = text
-            } else {
-                self.applyOCRResult(text: text, lines: lines, liveTextAnalysis: nil)
-            }
+            self.applyOCRResult(text: result.text, lines: result.lines, liveTextAnalysis: nil)
             self.ocrReady = true
 
             switch self.mode {
             case .textRecognition:
                 self.finishTextRecognition()
-            case .screenshotTranslation, .textTranslation:
+            case .screenshotTranslation:
                 self.finishOCRAndStartTranslation()
             }
             self.refreshHeight()
-            if mode == .textRecognition, provider == .apple, !text.isEmpty {
+            if mode == .textRecognition, result.provider == .apple, !result.text.isEmpty {
                 self.startLiveTextAnalysis()
             }
         }

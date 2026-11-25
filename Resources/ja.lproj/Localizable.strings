@@ -17,10 +17,7 @@
 "showCopyToast" = "コピー時に通知を表示";
 "showCopyToastHint" = "オフにするとクリップボードへコピーした際の通知を表示しません";
 "historyCacheToggleLabel" = "スクリーンショットをキャッシュ";
-"historyCacheToggleHint" = "最近のスクリーンショット、取得した色、アップロード結果を保存し、履歴パネルからすばやく再コピーできます";
-"clipboardTextCacheToggleLabel" = "クリップボードのテキストとファイルを記録";
-"clipboardTextCacheToggleHint" = "ファイルを複製せずテキストと元ファイルへの参照を保存";
-"clipboardTextHistoryLimitLabel" = "テキスト / ファイル履歴の上限";
+"historyCacheToggleHint" = "最近のスクリーンショットと画面録画を保存し、履歴パネルからすばやく再利用";
 "historyCacheLabel" = "画像とメディアの履歴上限";
 "historyPanelDisplayModeLabel" = "履歴パネルの表示方式";
 "historyPanelDisplayModeHint" = "ダイアログまたはノッチで履歴を表示";
@@ -68,8 +65,8 @@
 "pinToolbarCopy" = "ピン留め画像をコピー";
 "pinToolbarDrag" = "ピン留め画像をドラッグ";
 "pinToolbarEdit" = "ピン留め画像を編集";
-"pinToolbarEditText" = "テキストを編集";
 "pinToolbarCloseText" = "閉じる";
+"pinToolbarEditText" = "テキストを編集";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "選択画像を編集";
@@ -88,8 +85,6 @@
 "recordShortcutDefaultDisplay" = "未設定";
 "fullScreenScreenshotShortcutHeader" = "フルスクリーンショット";
 "fullScreenScreenshotShortcutDefaultDisplay" = "未設定";
-"colorPickerShortcutHeader" = "カラーピッカー";
-"colorPickerShortcutDefaultDisplay" = "未設定";
 
 /* Copy-to-clipboard shortcut (editor confirm) */
 "clipboardShortcutHeader" = "クリップボードへコピー";
@@ -124,13 +119,11 @@
 "shortcutConflictScreenshotTranslation" = "このキーの組み合わせはスクリーンショット翻訳ショートカットで既に使用されています。別の組み合わせを選んでください";
 "shortcutConflictRecord" = "このキーの組み合わせは録画ショートカットで既に使用されています。別の組み合わせを選んでください";
 "shortcutConflictFullScreenScreenshot" = "このキーの組み合わせはフルスクリーンショットのショートカットで既に使用されています。別の組み合わせを選んでください";
-"shortcutConflictColorPicker" = "このキーの組み合わせはカラーピッカーのショートカットで既に使用されています。別の組み合わせを選んでください";
 
 /* Menu bar */
 "takeScreenshot" = "スクリーンショット";
 "takeFullScreenScreenshot" = "フルスクリーンショット";
 "record" = "録画";
-"colorPicker" = "カラーピッカー";
 "settings" = "設定";
 "quitApp" = "capcap を終了";
 "historyMenu" = "履歴";
@@ -152,33 +145,17 @@
 "historyPanelFavoriteFailed" = "お気に入りを変更できません";
 "historyDeletedSkippingFavorites" = "項目を%d件削除、お気に入りを%d件スキップ";
 "historyPanelFilterAll" = "すべて";
+"historyPanelFilterFavorites" = "お気に入り";
 "historyPanelFilterScreenshots" = "スクリーンショット";
 "historyPanelFilterGIF" = "GIF";
 "historyPanelFilterMP4" = "MP4";
-"historyPanelFilterColors" = "カラー";
-"historyPanelFilterText" = "テキスト";
-"historyPanelSearchColorsAndText" = "色、テキスト、ファイルを検索";
-"historyPanelSearchColors" = "色を検索";
-"historyPanelSearchText" = "テキストを検索";
-"historyPanelClearSearch" = "検索をクリア";
-"historyPanelSearchNoResults" = "一致する履歴はありません";
-"historyPreviewCopyText" = "テキストをコピー";
-"historyPreviewTranslateText" = "テキストを翻訳";
-"historyPreviewConvertToQRCode" = "QRコードに変換";
-"historyPreviewQRCodeTooLong" = "テキストが長すぎるためQRコードに変換できません";
-"historyPreviewOriginalText" = "原文";
-"historyPreviewQRCodeTitle" = "テキストのQRコード";
-"historyPanelCopyHint" = "クリックでコピー";
 "historyPanelCopyDragHint" = "クリックでコピー · アプリへドラッグ";
-"historyPanelCopyMarkdownLink" = "MD リンクをコピー";
-"historyPanelCopyPlainLink" = "通常リンクをコピー";
 "historyPanelEmpty" = "履歴がありません";
 "historyPanelShortcutGuide" = "キーボードショートカット";
 "historyPanelShortcutGuideHide" = "履歴に戻る";
 "historyPanelShortcutKeyClick" = "クリック";
 "historyPanelShortcutKeyDrag" = "ドラッグ";
 "historyPanelShortcutKeySpace" = "スペース";
-"historyPanelShortcutSearch" = "検索を開始または終了";
 "historyPanelShortcutSwitchFilter" = "カテゴリを切り替える";
 "historyPanelShortcutSwitchItem" = "前または次の項目に切り替える";
 "historyPanelShortcutToggleSelection" = "1項目を選択または解除";
@@ -193,9 +170,6 @@
 "historyPanelShortcutCopyPreview" = "プレビュー内容をコピー";
 "historyPanelShortcutEditImage" = "画像を編集";
 "historyPanelShortcutPinImage" = "画像をピン留め";
-"historyPanelShortcutUploadImage" = "画像をアップロード";
-"historyPanelShortcutTranslateText" = "テキストを翻訳";
-"historyPanelShortcutQRCode" = "QRコードを作成";
 "historyPanelShortcutToggleGuide" = "ショートカット一覧を表示または非表示";
 
 /* Cursor chip */
@@ -249,7 +223,6 @@
 "recordingStop" = "録画を停止";
 "recordingPause" = "一時停止";
 "recordingResume" = "再開";
-"colorCopied" = "カラー %@ をコピーしました";
 "qrCodeCopied" = "QRコードの内容をコピーしました";
 "qrCodeNotFound" = "QRコードが見つかりません";
 
@@ -275,8 +248,6 @@
 "tipMoreEmoji" = "その他の絵文字";
 "tipMoreBeautifyPresets" = "美化プリセットを追加";
 "tipInsertImage" = "画像を挿入";
-"tipColorPicker" = "カラーピッカー";
-"tipPickedInkBottle" = "カラーピッカーでインク瓶に色を抽出";
 "tipUndo" = "取り消す";
 "tipRedo" = "やり直す";
 "tipMoveSelection" = "選択範囲を移動";
@@ -351,7 +322,6 @@
 "settingsTabGeneral" = "一般";
 "settingsTabShortcuts" = "ショートカット";
 "settingsTabPermissions" = "権限";
-"settingsTabUpload" = "画像ホスト";
 "settingsTabAbout" = "情報";
 "settingsTabTranslation" = "翻訳";
 "settingsTabToolbar" = "ツールバー";
@@ -385,9 +355,6 @@
 "aboutTagline" = "メニューバー スクリーンショットツール";
 "aboutLicense" = "ライセンス";
 "aboutSourceCode" = "ソースコード";
-"aboutStarOnGitHub" = "GitHub でスターを付ける 🌟";
-"aboutFeatureRequest" = "機能をリクエスト";
-"aboutBugReport" = "バグを報告";
 "aboutUpdateTitle" = "アップデート";
 "aboutErrorLog" = "エラーログ";
 "aboutErrorLogNoCrash" = "エラーログなし";
@@ -397,7 +364,7 @@
 "aboutErrorLogReveal" = "Finder に表示";
 "aboutErrorLogRefresh" = "ログを更新";
 "aboutErrorLogClear" = "ログを消去";
-"aboutErrorLogEmptyBody" = "capcap はまだエラーログを記録していません。フリーズやクラッシュが発生した場合は、ここに戻ってログをコピーし、バグ報告にご利用ください";
+"aboutErrorLogEmptyBody" = "capcap はまだエラーログを記録していません";
 
 /* Updates — About pane */
 "checkForUpdates" = "アップデートを確認";
@@ -447,26 +414,9 @@
 "quitConfirmAction" = "終了";
 "quitConfirmCancel" = "キャンセル";
 
-/* Upload — toolbar / toast / progress */
-"tipUpload" = "画像ホストにアップロード";
-"uploadingTitle" = "アップロード中";
-"uploadCopied" = "画像 URL をコピーしました";
-"uploadCopiedMarkdown" = "Markdown リンクをコピーしました";
-"uploadNoProvider" = "先に設定で画像ホストを構成してください";
-"uploadFailedPrefix" = "アップロードに失敗";
 
-/* Upload — settings tab */
-"uploadDefaultProvider" = "デフォルトの画像ホスト";
-"uploadDefaultNone" = "無効";
-"uploadSetDefaultButton" = "デフォルトに設定";
-"uploadSaveButton" = "保存";
-"uploadClearButton" = "クリア";
-"uploadSavedToast" = "設定を保存しました";
-"uploadCurrentDefault" = "現在のデフォルト";
-"uploadMarkdownToggleTitle" = "Markdown リンクとしてコピー";
-"uploadMarkdownToggleSubtitle" = "オンにすると、アップロード後に Markdown 画像タグ（![](url)）をコピーします。オフの場合は通常の URL をコピーします。履歴パネルでは、クラウド画像のクリックはこの設定に従い、ホバーボタンで MD または通常リンクを選べます";
 "filenameRuleTitle" = "ファイル名ルール";
-"filenameRuleSubtitle" = "画像アップロード、画像保存の既定名、録画保存の既定名を制御します。拡張子は自動で追加されます";
+"filenameRuleSubtitle" = "画像と録画を保存する際の既定のファイル名を設定します。拡張子は自動で付きます";
 "filenameRulePresetLabel" = "プリセット";
 "filenameRulePresetCustom" = "カスタム";
 "filenameRulePresetShort" = "短め";
@@ -484,55 +434,10 @@
 "filenameRuleVariableSize" = "サイズ";
 "filenameRulePreview" = "%@";
 
-/* Upload — provider field labels */
-"uploadFieldBucket" = "バケット";
-"uploadFieldBucketSpace" = "バケット";
-"uploadFieldRegion" = "リージョン";
-"uploadFieldRegionOptional" = "任意のリージョン";
-"uploadFieldPathOptional" = "任意のパス";
-"uploadFieldCustomUrlOptional" = "任意のカスタムドメイン";
-"uploadFieldPublicDomain" = "公開ドメイン";
-"uploadFieldEndpointArea" = "エンドポイント";
-"uploadFieldEndpointOptional" = "任意のエンドポイント";
-"uploadFieldCustomEndpoint" = "アップロード先";
-"uploadFieldCustomFileField" = "ファイルフィールド名";
-"uploadFieldCustomHeadersOptional" = "ヘッダー（任意）";
-"uploadFieldCustomResponsePathOptional" = "URL パス（任意）";
-"uploadFieldAccountId" = "アカウント ID";
-"uploadTestImageFailed" = "テスト画像を生成できませんでした";
 
-/* Upload — provider names */
-"providerTencentCOS" = "Tencent COS";
-"providerQiniuKodo" = "Qiniu Kodo";
-"providerCustomHTTP" = "カスタム HTTP ホスト";
-"providerAliyunOSS" = "Aliyun OSS";
 
-/* Upload — errors */
-"uploadErrMissingConfig" = "アップロード先が設定されていません";
-"uploadErrInvalidConfigPrefix" = "設定が無効です";
-"uploadErrNetworkPrefix" = "ネットワークエラー";
-"uploadErrServerPrefix" = "アップロードに失敗 コード %d";
-"uploadCustomInvalidEndpoint" = "HTTPS またはローカル HTTP のエンドポイントを入力してください";
-"uploadCustomInvalidFileField" = "ファイルフィールド名に無効な文字が含まれています";
-"uploadCustomInvalidHeader" = "ヘッダーは Header: Value 形式で入力してください";
-"uploadCustomResponseURLMissing" = "レスポンスに有効な画像 URL がありません";
-"uploadErrUnexpectedResponsePrefix" = "予期しない応答";
-"missingField" = "%@ がありません";
 
-/* Upload — test/validation pill */
-"uploadStatusUntested" = "未テスト";
-"uploadStatusTesting" = "テスト中";
-"uploadStatusValid" = "有効";
-"uploadStatusInvalid" = "無効な設定";
 
-/* Upload — log lines */
-"uploadLogStartingTest" = "テストアップロードを開始";
-"uploadLogConfigSaved" = "設定を保存しました";
-"uploadLogMissingFields" = "必須項目が不足しています: %@";
-"uploadLogTestSucceeded" = "テストアップロード成功: %@";
-"uploadLogTestFailed" = "テストアップロード失敗: %@";
-"uploadLogProviderDisabled" = "この画像ホストを無効にしました";
-"uploadLogConfigCleared" = "設定をクリアしました";
 
 /* Permissions — status label */
 "permissionGranted" = "許可済み";
@@ -600,54 +505,16 @@
 "translationErrBadEndpoint" = "エンドポイントが無効です";
 "translationErrBadResponse" = "予期しない応答";
 
-/* Image Merge */
-"imageMergeShortcutHeader" = "画像を結合";
-"imageMergeShortcutDefaultDisplay" = "未設定";
-"shortcutConflictImageMerge" = "このキーの組み合わせは画像結合ショートカットで使用されています。別の組み合わせを選んでください";
-"mergeImages" = "画像を結合";
-"mergeEditExitHint" = "結合画像を編集中です。X で編集を終了";
-"imageMergeNeedTwoImages" = "結合するには Finder で画像を 2 枚以上選択してください";
-"imageMergeSomeImagesSkipped" = "一部の画像を読み込めなかったためスキップしました";
-"imageMergeNoClipboardImage" = "クリップボードに画像がありません";
-"imageMergeFailed" = "画像の結合に失敗しました";
-"imageMergeSaved" = "結合画像を保存しました";
-"imageMergeWindowTitle" = "画像を結合";
-"imageMergeSources" = "画像ソース";
-"imageMergeAddFiles" = "ファイルを追加";
-"imageMergeAddFromClipboard" = "クリップボードから追加";
-"imageMergeImageList" = "画像";
-"imageMergeTemplate" = "配置";
-"imageMergeTemplateHorizontal" = "横方向";
-"imageMergeTemplateVertical" = "縦方向";
-"imageMergeTemplateGrid" = "グリッド";
-"imageMergeTemplateLongStitch" = "長画像結合";
-"imageMergeLayout" = "レイアウト";
-"imageMergeSpacing" = "間隔";
-"imageMergeMargin" = "外側余白";
-"imageMergeCornerRadius" = "角丸";
-"imageMergeBackground" = "背景";
-"imageMergeTransparent" = "透明";
-"imageMergeSolid" = "単色";
-"imageMergeOutput" = "出力";
-"imageMergeCopy" = "コピー";
-"imageMergeSave" = "保存";
-"imageMergeContinueEditing" = "編集";
-"imageMergeClose" = "閉じる";
-"imageMergeEmptyTitle" = "結合する画像をドロップ";
-"imageMergeEmptyBody" = "ファイル追加、クリップボード追加、または画像をここにドラッグ";
-"imageMergeClipboardSourceName" = "クリップボード画像";
 
 /* Screenshot quality */
 "screenshotQualityTitle" = "スクリーンショット品質";
-"screenshotQualitySubtitle" = "アップロード、保存、コピー前に選択した品質で処理します。既定は原寸";
-"screenshotQualityUploadLabel" = "アップロード";
+"screenshotQualitySubtitle" = "保存やコピーの前に選択した品質で処理します。既定は原寸";
 "screenshotQualitySaveLabel" = "ファイルに保存";
 "screenshotQualityClipboardLabel" = "クリップボードにコピー";
 "screenshotQualityOriginal" = "原寸";
 "screenshotQualityOriginalHint" = "PNG 原寸の無劣化画質でファイルは最大";
 "screenshotQualityCompressed" = "圧縮";
 "screenshotQualityCompressedHint" = "原寸を保ち、ローカルで PNG を圧縮";
-"screenshotQualityCompressingUpload" = "圧縮してアップロード中";
 "screenshotQualityCompressingSave" = "圧縮して保存中";
 "screenshotQualityCompressingClipboard" = "圧縮してコピー中";
 "screenshotCompressionFailed" = "画像の圧縮に失敗";
@@ -685,33 +552,10 @@
 
 /* Magnifier lens panel */
 "magnifierLensPanelCoordinatesLabel" = "座標";
-"magnifierLensPanelColorValueLabel" = "色";
 "magnifierLensPanelCoordinates" = "座標: %@, %@";
-"magnifierLensPanelHex" = "HEX: %@";
-"magnifierLensPanelRgb" = "RGB: %@";
-"magnifierLensPanelRgbString" = "rgb(%d, %d, %d)";
-"magnifierLensPanelCopyHint" = "色をコピー(C)";
-"magnifierLensPanelFormatHint" = "カラー形式(F)";
 "magnifierLensPanelAspectFree" = "自由";
 "magnifierLensPanelAspectHint" = "撮影比率(R)";
 /* ファイルのアップロード */
-"fileUploadShortcutHeader" = "ファイルをアップロード";
-"finderUploadShortcutDefaultDisplay" = "未設定";
-"shortcutConflictFileUpload" = "このキーの組み合わせはファイルをアップロードするショートカットで使用されています。別の組み合わせを選んでください";
-"uploadFilesMenu" = "ファイルをアップロード";
-"finderUploadDialogTitle" = "画像ホストへアップロード";
-"finderUploadDialogHeading" = "アップロードするファイル";
-"finderUploadSummary" = "%d 個のファイルを選択 · %@";
-"finderUploadSelectAll" = "すべて選択";
-"finderUploadAction" = "%d 個のファイルをアップロード";
-"finderUploadRetryAction" = "%d 個のファイルを再試行";
-"finderUploadingProgress" = "アップロード中 %d/%d";
-"finderUploadSucceeded" = "アップロード済み";
-"finderUploadFailed" = "失敗";
-"finderUploadErrorLogTitle" = "エラーログ";
-"finderUploadUnknownSize" = "サイズ不明";
-"finderUploadReadFailed" = "ファイルを読み込めません %@";
-"finderUploadCompleted" = "%d 個のファイルをアップロードしてリンクをコピーしました";
 
 "historyNotchTriggerLabel" = "ノッチの起動方法";
 "historyNotchTriggerHover" = "ホバーで開く";
@@ -724,7 +568,6 @@
 "settingsGeneralHistory" = "履歴";
 "settingsGeneralFiles" = "ファイルと出力";
 
-"historyPreviewTextSaveFailed" = "テキストを保存できませんでした、再試行してください";
 
 "windowCapturePreparing" = "スクリーンショットを準備中";
 
@@ -754,25 +597,8 @@
 "ocrTimeoutError" = "OCR がタイムアウトしました · サービスを確認するか再試行してください";
 "ocrRequestFailed" = "OCR リクエストが失敗しました";
 
-"historyPanelFilterFiles" = "ファイル";
 
 "historyPanelFolder" = "フォルダ";
-
-"historyPanelSearchFiles" = "ファイル名とパスを検索";
-
-"historyPanelSourceUnavailable" = "元のファイルを利用できません";
-
-"historyPanelSourceUnavailableHint" = "一部の元ファイルが削除済み、オフライン、または未ダウンロードです";
-
-"historyFilePreviewPrevious" = "前のファイル";
-
-"historyFilePreviewNext" = "次のファイル";
-
-"historyFilePreviewLoading" = "プレビューを読み込み中";
-
-"historyFilePreviewRetry" = "再確認";
-
-"historyFilePreviewUnavailable" = "このファイルはプレビューできません";
 "editorStrokeWidth" = "線の太さ";
 "editorFontSize" = "フォントサイズ";
 "ocrPinPanel" = "パネルを固定";

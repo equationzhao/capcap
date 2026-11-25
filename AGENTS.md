@@ -128,9 +128,6 @@ Apply Build & Run above to changes in these files.
 - `capcap/Utilities/Defaults.swift` owns persisted preferences and localized
   string accessors. Keep new settings normalized at the persistence boundary and
   add matching keys to every `Resources/*.lproj/Localizable.strings` file.
-- `capcap/Settings/UploadSettingsPane.swift` owns image-host provider settings.
-  Keep provider-specific validation, default-provider selection, and stored
-  credentials isolated to this settings surface and `Defaults.swift`.
 - `capcap/Trigger/HotkeyManager.swift` owns global shortcut registration and
   keyboard trigger dispatch. Keep shortcut recording, defaults, and active
   registration behavior aligned with Settings.

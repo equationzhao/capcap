@@ -60,7 +60,6 @@ final class FixedImageCropRendererTests: XCTestCase {
             .finder,
             .clipboard,
             .pin,
-            .merge,
             .fullScreen,
         ]
 

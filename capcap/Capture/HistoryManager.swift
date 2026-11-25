@@ -1,125 +1,16 @@
 import AppKit
 
-enum HistoryEntryKind {
+enum HistoryEntryKind: Equatable {
     case image
     case video
-    case color(hex: String)
-    case text(HistoryTextContent)
-    case files(HistoryFileReferences)
-}
-
-final class HistoryTextContent {
-    private final class CacheValue: NSObject {
-        let value: String
-
-        init(_ value: String) {
-            self.value = value
-        }
-    }
-
-    private static let loadQueue = DispatchQueue(
-        label: "capcap.historyTextContent",
-        qos: .utility,
-        attributes: .concurrent
-    )
-    private static let cache: NSCache<NSString, CacheValue> = {
-        let cache = NSCache<NSString, CacheValue>()
-        cache.countLimit = 512
-        cache.totalCostLimit = 8 * 1024 * 1024
-        return cache
-    }()
-
-    let fileURL: URL
-
-    private let lock = NSLock()
-    private var cacheKey: NSString {
-        fileURL.standardizedFileURL.path as NSString
-    }
-
-    init(fileURL: URL) {
-        self.fileURL = fileURL
-    }
-
-    var loadedValue: String? {
-        lock.lock()
-        defer { lock.unlock() }
-        return Self.cache.object(forKey: cacheKey)?.value
-    }
-
-    var value: String {
-        lock.lock()
-        defer { lock.unlock() }
-        if let cachedValue = Self.cache.object(forKey: cacheKey)?.value {
-            return cachedValue
-        }
-        let loadedValue = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
-        Self.cache.setObject(
-            CacheValue(loadedValue),
-            forKey: cacheKey,
-            cost: loadedValue.utf8.count
-        )
-        return loadedValue
-    }
-
-    func save(_ text: String) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        // Copy the existing file first so its extended attributes (including
-        // favorite state) survive the atomic replacement.
-        let temporaryURL = fileURL.deletingLastPathComponent()
-            .appendingPathComponent(".\(UUID().uuidString).tmp")
-        defer { try? FileManager.default.removeItem(at: temporaryURL) }
-        try FileManager.default.copyItem(at: fileURL, to: temporaryURL)
-        let handle = try FileHandle(forWritingTo: temporaryURL)
-        do {
-            try handle.truncate(atOffset: 0)
-            try handle.write(contentsOf: Data(text.utf8))
-            try handle.close()
-        } catch {
-            try? handle.close()
-            throw error
-        }
-        guard rename(temporaryURL.path, fileURL.path) == 0 else {
-            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-        }
-        Self.cache.setObject(CacheValue(text), forKey: cacheKey, cost: text.utf8.count)
-    }
-
-    func load(completion: @escaping (String) -> Void) {
-        if let loadedValue {
-            if Thread.isMainThread {
-                completion(loadedValue)
-            } else {
-                DispatchQueue.main.async {
-                    completion(loadedValue)
-                }
-            }
-            return
-        }
-        Self.loadQueue.async { [self] in
-            let value = value
-            DispatchQueue.main.async {
-                completion(value)
-            }
-        }
-    }
-
-    func preload() {
-        guard loadedValue == nil else { return }
-        Self.loadQueue.async { [self] in
-            _ = value
-        }
-    }
 }
 
 struct HistoryEntry {
     let fileURL: URL
     let createdAt: Date
     let kind: HistoryEntryKind
-    let cloudURL: URL?
 }
 
-private let cloudURLXattrKey = "com.capcap.cloudURL"
 private let favoriteXattrKey = "com.capcap.favorite"
 
 final class HistoryManager {
@@ -132,7 +23,6 @@ final class HistoryManager {
     private var cachedEntries: [HistoryEntry]?
     private var cachedEntryCount: Int?
     private var copiedEntryPromotions: [String: Date]
-    private var fileReferenceGeneration = 0
 
     private init() {
         let fm = FileManager.default
@@ -160,33 +50,17 @@ final class HistoryManager {
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(clipboardTextCacheEnabledChanged),
-            name: .clipboardTextCacheEnabledDidChange,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(clipboardTextHistoryLimitChanged),
-            name: .clipboardTextHistoryLimitDidChange,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
             selector: #selector(recordingSaveDirectoryChanged),
             name: .recordingSaveDirectoryDidChange,
             object: nil
         )
 
         if !Defaults.historyCacheEnabled {
-            removeStoredHistoryEntries(withExtensions: ["png", "gif", "mp4", "color"])
+            removeStoredHistoryEntries(withExtensions: HistoryRetentionPolicy.mediaExtensions)
         }
-        if !Defaults.clipboardTextCacheEnabled {
-            removeStoredHistoryEntries(withExtensions: ["txt", "fileref"])
-        }
-
         queue.async { [weak self] in
             guard let self else { return }
-            let removedCount = self.pruneToLimits()
+            let removedCount = self.pruneMediaToLimit()
             guard removedCount > 0 else { return }
             self.invalidateEntriesCache()
             DispatchQueue.main.async {
@@ -210,39 +84,11 @@ final class HistoryManager {
         }
     }
 
-    @objc private func clipboardTextHistoryLimitChanged() {
-        queue.async { [weak self] in
-            guard let self else { return }
-            self.pruneTextToLimits()
-            self.pruneFileReferencesToLimit()
-            self.invalidateEntriesCache()
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
-            }
-        }
-    }
-
     @objc private func cacheEnabledChanged() {
         queue.async { [weak self] in
             guard let self else { return }
             if !Defaults.historyCacheEnabled {
-                self.removeStoredHistoryEntries(withExtensions: ["png", "gif", "mp4", "color"])
-            }
-            self.invalidateEntriesCache()
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
-            }
-        }
-    }
-
-    @objc private func clipboardTextCacheEnabledChanged() {
-        entriesCacheLock.lock()
-        fileReferenceGeneration += 1
-        entriesCacheLock.unlock()
-        queue.async { [weak self] in
-            guard let self else { return }
-            if !Defaults.clipboardTextCacheEnabled {
-                self.removeStoredHistoryEntries(withExtensions: ["txt", "fileref"])
+                self.removeStoredHistoryEntries(withExtensions: HistoryRetentionPolicy.mediaExtensions)
             }
             self.invalidateEntriesCache()
             DispatchQueue.main.async {
@@ -261,7 +107,7 @@ final class HistoryManager {
         }
     }
 
-    func add(image: NSImage, cloudURL: URL? = nil, originalPNGData: Data? = nil) {
+    func add(image: NSImage, originalPNGData: Data? = nil) {
         guard Defaults.historyCacheEnabled,
               let data = originalPNGData ?? image.pngDataPreservingBacking() else { return }
         queue.async { [weak self] in
@@ -274,53 +120,7 @@ final class HistoryManager {
             } catch {
                 return
             }
-            if let cloudURL = cloudURL {
-                Self.writeCloudURLXattr(cloudURL, on: url)
-            }
             self.pruneMediaToLimit()
-            self.invalidateEntriesCache()
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
-            }
-        }
-    }
-
-    func addColor(hex: String) {
-        guard Defaults.historyCacheEnabled else { return }
-        let normalized = hex.uppercased()
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            guard Defaults.historyCacheEnabled else { return }
-            let name = Self.filenameFormatter.string(from: Date()) + ".color"
-            let url = self.directoryURL.appendingPathComponent(name)
-            do {
-                try normalized.write(to: url, atomically: true, encoding: .utf8)
-            } catch {
-                return
-            }
-            self.pruneMediaToLimit()
-            self.invalidateEntriesCache()
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
-            }
-        }
-    }
-
-    func addText(_ text: String) {
-        guard Defaults.clipboardTextCacheEnabled,
-              !text.isEmpty,
-              text.utf8.count <= HistoryRetentionPolicy.maximumTextEntryBytes else { return }
-        queue.async { [weak self] in
-            guard let self else { return }
-            guard Defaults.clipboardTextCacheEnabled else { return }
-            let name = Self.filenameFormatter.string(from: Date()) + ".txt"
-            let url = self.directoryURL.appendingPathComponent(name)
-            do {
-                try text.write(to: url, atomically: true, encoding: .utf8)
-            } catch {
-                return
-            }
-            self.pruneTextToLimits()
             self.invalidateEntriesCache()
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
@@ -352,52 +152,6 @@ final class HistoryManager {
             self.invalidateEntriesCache()
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
-            }
-        }
-    }
-
-    func addFileReferences(_ urls: [URL]) {
-        guard Defaults.clipboardTextCacheEnabled else { return }
-        var seen = Set<String>()
-        let sources = urls.filter { $0.isFileURL && seen.insert($0.standardizedFileURL.path).inserted }
-        guard !sources.isEmpty else { return }
-        entriesCacheLock.lock()
-        let generation = fileReferenceGeneration
-        entriesCacheLock.unlock()
-        let copiedAt = Date()
-        HistoryFileReferences.captureQueue.addOperation { [weak self] in
-            guard let self else { return }
-            self.entriesCacheLock.lock()
-            let isCurrent = generation == self.fileReferenceGeneration
-            self.entriesCacheLock.unlock()
-            guard isCurrent, Defaults.clipboardTextCacheEnabled else { return }
-            let references = sources.map { HistoryFileReferences.Reference(url: $0) }
-            guard let data = try? JSONEncoder().encode(references) else { return }
-            self.queue.async {
-                self.entriesCacheLock.lock()
-                let isCurrent = generation == self.fileReferenceGeneration
-                self.entriesCacheLock.unlock()
-                guard isCurrent, Defaults.clipboardTextCacheEnabled else { return }
-                let identity = Set(references.map(\.path))
-                let duplicates = self.loadCachedEntries().filter { entry in
-                    guard case .files(let files) = entry.kind else { return false }
-                    return Set(files.references.map(\.path)) == identity
-                }
-                if let favorite = duplicates.first(where: { Self.isFavorite(url: $0.fileURL) }) {
-                    // Preserve the favorite's manifest and xattrs, updating only its history date.
-                    try? FileManager.default.setAttributes([.modificationDate: copiedAt],
-                                                           ofItemAtPath: favorite.fileURL.path)
-                } else {
-                    let manifest = self.directoryURL.appendingPathComponent(UUID().uuidString + ".fileref")
-                    do { try data.write(to: manifest, options: .atomic) } catch { return }
-                    try? FileManager.default.setAttributes([.modificationDate: copiedAt], ofItemAtPath: manifest.path)
-                    for duplicate in duplicates { try? FileManager.default.removeItem(at: duplicate.fileURL) }
-                }
-                self.pruneFileReferencesToLimit()
-                self.invalidateEntriesCache()
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
-                }
             }
         }
     }
@@ -488,16 +242,10 @@ final class HistoryManager {
     }
 
     private func loadCachedEntries() -> [HistoryEntry] {
-        var allowedExtensions = Set<String>()
-        if Defaults.historyCacheEnabled {
-            allowedExtensions.formUnion(["png", "gif", "mp4", "color"])
-        }
-        if Defaults.clipboardTextCacheEnabled {
-            allowedExtensions.insert("txt")
-            allowedExtensions.insert("fileref")
-        }
-        return entries(in: directoryURL, allowedExtensions: allowedExtensions,
-                       supportedExtensions: ["png", "gif", "mp4", "color", "txt", "fileref"])
+        let supportedExtensions = HistoryRetentionPolicy.mediaExtensions
+        return entries(in: directoryURL,
+                       allowedExtensions: Defaults.historyCacheEnabled ? supportedExtensions : [],
+                       supportedExtensions: supportedExtensions)
     }
 
     private func loadRecordingDirectoryEntries() -> [HistoryEntry] {
@@ -514,16 +262,8 @@ final class HistoryManager {
             locations.append((directory, Defaults.historyCacheEnabled ? ["gif", "mp4"] : []))
         }
 
-        var cachedExtensions = Set<String>()
-        if Defaults.historyCacheEnabled {
-            cachedExtensions.formUnion(["png", "gif", "mp4", "color"])
-        }
-        if Defaults.clipboardTextCacheEnabled {
-            cachedExtensions.insert("txt")
-            cachedExtensions.insert("fileref")
-        }
-        locations.append((directoryURL, cachedExtensions))
-
+        let mediaExtensions = HistoryRetentionPolicy.mediaExtensions
+        locations.append((directoryURL, Defaults.historyCacheEnabled ? mediaExtensions : []))
         var identities = Set<String>()
         let fm = FileManager.default
         for (directory, allowedExtensions) in locations {
@@ -533,7 +273,7 @@ final class HistoryManager {
                     options: [.skipsHiddenFiles]
                   ) else { continue }
             let supportedExtensions: Set<String> = directory == directoryURL
-                ? ["png", "gif", "mp4", "color", "txt", "fileref"] : ["gif", "mp4"]
+                ? mediaExtensions : ["gif", "mp4"]
             for url in urls where Self.shouldIncludeEntry(url,
                                                           allowedExtensions: allowedExtensions,
                                                           supportedExtensions: supportedExtensions) {
@@ -576,26 +316,9 @@ final class HistoryManager {
             let date = values?.contentModificationDate ?? .distantPast
             switch ext {
             case "png", "gif":
-                let cloudURL = Self.readCloudURLXattr(on: url)
-                return HistoryEntry(fileURL: url, createdAt: date, kind: .image, cloudURL: cloudURL)
+                return HistoryEntry(fileURL: url, createdAt: date, kind: .image)
             case "mp4":
-                return HistoryEntry(fileURL: url, createdAt: date, kind: .video, cloudURL: nil)
-            case "color":
-                guard let hex = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-                let trimmed = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return nil }
-                return HistoryEntry(fileURL: url, createdAt: date, kind: .color(hex: trimmed), cloudURL: nil)
-            case "txt":
-                guard (values?.fileSize ?? 0) > 0 else { return nil }
-                return HistoryEntry(
-                    fileURL: url,
-                    createdAt: date,
-                    kind: .text(HistoryTextContent(fileURL: url)),
-                    cloudURL: nil
-                )
-            case "fileref":
-                guard let files = HistoryFileReferences.load(from: url) else { return nil }
-                return HistoryEntry(fileURL: url, createdAt: date, kind: .files(files), cloudURL: nil)
+                return HistoryEntry(fileURL: url, createdAt: date, kind: .video)
             default:
                 return nil
             }
@@ -625,9 +348,6 @@ final class HistoryManager {
     }
 
     func clearAll(completion: ((Int, Int) -> Void)? = nil) {
-        entriesCacheLock.lock()
-        fileReferenceGeneration += 1
-        entriesCacheLock.unlock()
         queue.async { [weak self] in
             guard let self = self else { return }
             let result = self.removeAllEntries(includeRecordingMedia: true)
@@ -660,39 +380,12 @@ final class HistoryManager {
     }
 
     @discardableResult
-    private func pruneToLimits() -> Int {
-        var removedCount = 0
-        if Defaults.historyCacheEnabled {
-            removedCount += pruneMediaToLimit()
-        }
-        if Defaults.clipboardTextCacheEnabled {
-            removedCount += pruneTextToLimits()
-            removedCount += pruneFileReferencesToLimit()
-        }
-        return removedCount
-    }
-
-    @discardableResult
     private func pruneMediaToLimit() -> Int {
         guard Defaults.historyCacheEnabled else { return 0 }
         return HistoryRetentionPolicy.pruneMedia(
             in: directoryURL,
             limit: Defaults.historyCacheLimit
         )
-    }
-
-    @discardableResult
-    private func pruneTextToLimits() -> Int {
-        guard Defaults.clipboardTextCacheEnabled else { return 0 }
-        return HistoryRetentionPolicy.pruneText(
-            in: directoryURL,
-            limit: Defaults.clipboardTextHistoryLimit
-        )
-    }
-
-    @discardableResult
-    private func pruneFileReferencesToLimit() -> Int {
-        HistoryRetentionPolicy.pruneFileReferences(in: directoryURL, limit: Defaults.clipboardTextHistoryLimit)
     }
 
     private func invalidateEntriesCache() {
@@ -882,44 +575,11 @@ final class HistoryManager {
         ) else {
             return []
         }
-        return urls.filter { url in
-            switch url.pathExtension.lowercased() {
-            case "png", "gif", "mp4", "color", "txt", "fileref":
-                return true
-            default:
-                return false
-            }
-        }
-    }
-
-    private static func writeCloudURLXattr(_ cloudURL: URL, on fileURL: URL) {
-        let value = cloudURL.absoluteString
-        fileURL.withUnsafeFileSystemRepresentation { fsPath in
-            guard let fsPath = fsPath else { return }
-            value.withCString { cstr in
-                _ = setxattr(fsPath, cloudURLXattrKey, cstr, strlen(cstr), 0, 0)
-            }
-        }
-    }
-
-    private static func readCloudURLXattr(on fileURL: URL) -> URL? {
-        return fileURL.withUnsafeFileSystemRepresentation { fsPath -> URL? in
-            guard let fsPath = fsPath else { return nil }
-            let size = getxattr(fsPath, cloudURLXattrKey, nil, 0, 0, 0)
-            guard size > 0 else { return nil }
-            var buf = [UInt8](repeating: 0, count: size)
-            let read = buf.withUnsafeMutableBytes { raw -> ssize_t in
-                getxattr(fsPath, cloudURLXattrKey, raw.baseAddress, raw.count, 0, 0)
-            }
-            guard read > 0 else { return nil }
-            guard let str = String(bytes: buf[0..<read], encoding: .utf8) else { return nil }
-            return URL(string: str)
-        }
+        return urls.filter { HistoryRetentionPolicy.mediaExtensions.contains($0.pathExtension.lowercased()) }
     }
 
     /// Marks `fileURL` as favorited (`true`) or unfavorited (`false`) by setting or
-    /// removing the `com.capcap.favorite` extended attribute, mirroring the
-    /// cloudURL xattr helpers so retention pruning stays a pure read.
+    /// removing the `com.capcap.favorite` extended attribute.
     ///
     /// Returns whether the on-disk state now matches the requested state:
     /// favoriting succeeds when `setxattr` writes the marker; unfavoriting succeeds

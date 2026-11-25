@@ -5,9 +5,6 @@ class StatusBarController: NSObject {
     private let onTakeScreenshot: () -> Void
     private let onTakeFullScreenScreenshot: () -> Void
     private let onRecord: () -> Void
-    private let onMergeImages: () -> Void
-    private let onUploadFiles: () -> Void
-    private let onColorPicker: () -> Void
     private let onOpenHistoryPanel: () -> Void
     private let onOpenSettings: () -> Void
 
@@ -15,18 +12,12 @@ class StatusBarController: NSObject {
         onTakeScreenshot: @escaping () -> Void,
         onTakeFullScreenScreenshot: @escaping () -> Void,
         onRecord: @escaping () -> Void,
-        onMergeImages: @escaping () -> Void,
-        onUploadFiles: @escaping () -> Void,
-        onColorPicker: @escaping () -> Void,
         onOpenHistoryPanel: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void
     ) {
         self.onTakeScreenshot = onTakeScreenshot
         self.onTakeFullScreenScreenshot = onTakeFullScreenScreenshot
         self.onRecord = onRecord
-        self.onMergeImages = onMergeImages
-        self.onUploadFiles = onUploadFiles
-        self.onColorPicker = onColorPicker
         self.onOpenHistoryPanel = onOpenHistoryPanel
         self.onOpenSettings = onOpenSettings
 
@@ -47,9 +38,6 @@ class StatusBarController: NSObject {
             self?.setupMenu()
         }
         NotificationCenter.default.addObserver(forName: .historyCacheEnabledDidChange, object: nil, queue: .main) { [weak self] _ in
-            self?.setupMenu()
-        }
-        NotificationCenter.default.addObserver(forName: .clipboardTextCacheEnabledDidChange, object: nil, queue: .main) { [weak self] _ in
             self?.setupMenu()
         }
         NotificationCenter.default.addObserver(forName: .hotkeyDidChange, object: nil, queue: .main) { [weak self] _ in
@@ -81,29 +69,6 @@ class StatusBarController: NSObject {
         recordItem.image = Self.menuIcon(systemName: "record.circle")
         HotkeyManager.applyRecordToMenuItem(recordItem)
         menu.addItem(recordItem)
-
-        let mergeItem = NSMenuItem(title: L10n.mergeImages, action: #selector(mergeImages), keyEquivalent: "")
-        mergeItem.target = self
-        mergeItem.image = Self.menuIcon(systemName: "square.grid.2x2")
-        HotkeyManager.applyImageMergeToMenuItem(mergeItem)
-        menu.addItem(mergeItem)
-
-        let uploadItem = NSMenuItem(
-            title: L10n.uploadFilesMenu,
-            action: #selector(uploadFiles),
-            keyEquivalent: ""
-        )
-        uploadItem.target = self
-        uploadItem.image = Self.menuIcon(systemName: "icloud.and.arrow.up")
-        HotkeyManager.applyFinderUploadToMenuItem(uploadItem)
-        menu.addItem(uploadItem)
-
-        let colorPickerItem = NSMenuItem(title: L10n.colorPicker, action: #selector(colorPicker), keyEquivalent: "")
-        colorPickerItem.target = self
-        colorPickerItem.image = Self.menuIcon(systemName: "eyedropper")
-        HotkeyManager.applyColorPickerToMenuItem(colorPickerItem)
-        menu.addItem(colorPickerItem)
-
         menu.addItem(NSMenuItem.separator())
 
         if Defaults.isHistoryCacheAvailable {
@@ -166,18 +131,6 @@ class StatusBarController: NSObject {
 
     @objc private func record() {
         onRecord()
-    }
-
-    @objc private func mergeImages() {
-        onMergeImages()
-    }
-
-    @objc private func uploadFiles() {
-        onUploadFiles()
-    }
-
-    @objc private func colorPicker() {
-        onColorPicker()
     }
 
     @objc private func openSettings() {

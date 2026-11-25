@@ -17,10 +17,7 @@
 "showCopyToast" = "Показывать уведомление о копировании";
 "showCopyToastHint" = "Отключите чтобы не показывать уведомление о копировании в буфер обмена";
 "historyCacheToggleLabel" = "Кэшировать снимки";
-"historyCacheToggleHint" = "Сохраняет недавние снимки, выбранные цвета и ссылки загрузок для быстрого повторного копирования из панели истории";
-"clipboardTextCacheToggleLabel" = "Записывать текст и файлы буфера обмена";
-"clipboardTextCacheToggleHint" = "Сохранять текст и ссылки на исходные файлы без копирования файлов";
-"clipboardTextHistoryLimitLabel" = "Лимит истории текста / файлов";
+"historyCacheToggleHint" = "Сохраняет недавние снимки и записи экрана для быстрого доступа из панели истории";
 "historyCacheLabel" = "Лимит истории изображений и медиа";
 "historyPanelDisplayModeLabel" = "Отображение панели истории";
 "historyPanelDisplayModeHint" = "Выберите диалог или вырез для истории";
@@ -68,8 +65,8 @@
 "pinToolbarCopy" = "Копировать закрепленное изображение";
 "pinToolbarDrag" = "Перетащить закрепленное изображение";
 "pinToolbarEdit" = "Редактировать закрепленное изображение";
-"pinToolbarEditText" = "Редактировать текст";
 "pinToolbarCloseText" = "Закрыть";
+"pinToolbarEditText" = "Редактировать текст";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "Редактировать выбранное изображение";
@@ -88,8 +85,6 @@
 "recordShortcutDefaultDisplay" = "Не задано";
 "fullScreenScreenshotShortcutHeader" = "Снимок всего экрана";
 "fullScreenScreenshotShortcutDefaultDisplay" = "Не задано";
-"colorPickerShortcutHeader" = "Пипетка";
-"colorPickerShortcutDefaultDisplay" = "Не задано";
 
 /* Copy-to-clipboard shortcut (editor confirm) */
 "clipboardShortcutHeader" = "Копировать в буфер обмена";
@@ -124,13 +119,11 @@
 "shortcutConflictScreenshotTranslation" = "Это сочетание клавиш уже назначено для перевода снимка. Выберите другое";
 "shortcutConflictRecord" = "Это сочетание клавиш уже назначено для записи. Выберите другое";
 "shortcutConflictFullScreenScreenshot" = "Это сочетание клавиш уже назначено для снимка всего экрана. Выберите другое";
-"shortcutConflictColorPicker" = "Это сочетание клавиш уже назначено для пипетки. Выберите другое";
 
 /* Menu bar */
 "takeScreenshot" = "Сделать снимок";
 "takeFullScreenScreenshot" = "Снимок всего экрана";
 "record" = "Запись";
-"colorPicker" = "Пипетка";
 "settings" = "Настройки";
 "quitApp" = "Завершить capcap";
 "historyMenu" = "История";
@@ -152,33 +145,17 @@
 "historyPanelFavoriteFailed" = "Не удалось изменить избранное";
 "historyDeletedSkippingFavorites" = "Удалено объектов: %d, избранных пропущено: %d";
 "historyPanelFilterAll" = "Все";
+"historyPanelFilterFavorites" = "Избранное";
 "historyPanelFilterScreenshots" = "Снимки";
 "historyPanelFilterGIF" = "GIF";
 "historyPanelFilterMP4" = "MP4";
-"historyPanelFilterColors" = "Цвета";
-"historyPanelFilterText" = "Текст";
-"historyPanelSearchColorsAndText" = "Поиск по цветам, тексту и файлам";
-"historyPanelSearchColors" = "Поиск по цветам";
-"historyPanelSearchText" = "Поиск по тексту";
-"historyPanelClearSearch" = "Очистить поиск";
-"historyPanelSearchNoResults" = "Совпадений не найдено";
-"historyPreviewCopyText" = "Копировать текст";
-"historyPreviewTranslateText" = "Перевести текст";
-"historyPreviewConvertToQRCode" = "Преобразовать в QR-код";
-"historyPreviewQRCodeTooLong" = "Текст слишком длинный для преобразования в QR-код";
-"historyPreviewOriginalText" = "Исходный текст";
-"historyPreviewQRCodeTitle" = "QR-код текста";
-"historyPanelCopyHint" = "Нажмите для копирования";
 "historyPanelCopyDragHint" = "Нажмите для копирования · перетащите в приложение";
-"historyPanelCopyMarkdownLink" = "Скопировать MD-ссылку";
-"historyPanelCopyPlainLink" = "Скопировать обычную ссылку";
 "historyPanelEmpty" = "История пуста";
 "historyPanelShortcutGuide" = "Сочетания клавиш";
 "historyPanelShortcutGuideHide" = "Вернуться к истории";
 "historyPanelShortcutKeyClick" = "Щелчок";
 "historyPanelShortcutKeyDrag" = "Перетянуть";
 "historyPanelShortcutKeySpace" = "Пробел";
-"historyPanelShortcutSearch" = "Открыть или закрыть поиск";
 "historyPanelShortcutSwitchFilter" = "Переключить категорию";
 "historyPanelShortcutSwitchItem" = "Перейти к предыдущему или следующему элементу";
 "historyPanelShortcutToggleSelection" = "Выбрать или снять выбор с объекта";
@@ -193,9 +170,6 @@
 "historyPanelShortcutCopyPreview" = "Копировать содержимое просмотра";
 "historyPanelShortcutEditImage" = "Редактировать изображение";
 "historyPanelShortcutPinImage" = "Закрепить изображение";
-"historyPanelShortcutUploadImage" = "Загрузить изображение";
-"historyPanelShortcutTranslateText" = "Перевести текст";
-"historyPanelShortcutQRCode" = "Создать QR-код";
 "historyPanelShortcutToggleGuide" = "Показать или скрыть сочетания клавиш";
 
 /* Cursor chip */
@@ -249,7 +223,6 @@
 "recordingStop" = "Остановить запись";
 "recordingPause" = "Пауза";
 "recordingResume" = "Продолжить";
-"colorCopied" = "Цвет %@ скопирован";
 "qrCodeCopied" = "Содержимое QR-кода скопировано";
 "qrCodeNotFound" = "QR-код не найден";
 
@@ -275,8 +248,6 @@
 "tipMoreEmoji" = "Больше эмодзи";
 "tipMoreBeautifyPresets" = "Больше пресетов оформления";
 "tipInsertImage" = "Вставить изображение";
-"tipColorPicker" = "Пипетка";
-"tipPickedInkBottle" = "Взять цвет пипеткой в чернильницу";
 "tipUndo" = "Отменить";
 "tipRedo" = "Повторить";
 "tipMoveSelection" = "Переместить выделение";
@@ -351,7 +322,6 @@
 "settingsTabGeneral" = "Основные";
 "settingsTabShortcuts" = "Сочетания";
 "settingsTabPermissions" = "Разрешения";
-"settingsTabUpload" = "Хостинг";
 "settingsTabAbout" = "О программе";
 "settingsTabTranslation" = "Перевод";
 "settingsTabToolbar" = "Панель инструментов";
@@ -385,9 +355,6 @@
 "aboutTagline" = "Инструмент для снимков экрана в строке меню";
 "aboutLicense" = "Лицензия";
 "aboutSourceCode" = "Исходный код";
-"aboutStarOnGitHub" = "Поставить звезду на GitHub 🌟";
-"aboutFeatureRequest" = "Запросить функцию";
-"aboutBugReport" = "Сообщить об ошибке";
 "aboutUpdateTitle" = "Обновления";
 "aboutErrorLog" = "Журнал ошибок";
 "aboutErrorLogNoCrash" = "Журналов ошибок нет";
@@ -397,7 +364,7 @@
 "aboutErrorLogReveal" = "Показать в Finder";
 "aboutErrorLogRefresh" = "Обновить журнал";
 "aboutErrorLogClear" = "Очистить журнал";
-"aboutErrorLogEmptyBody" = "capcap пока не зафиксировал журналов ошибок. Если приложение зависнет или завершится аварийно, вернитесь сюда, чтобы скопировать журнал для отчёта об ошибке";
+"aboutErrorLogEmptyBody" = "capcap пока не зафиксировал журналов ошибок";
 
 /* Updates — About pane */
 "checkForUpdates" = "Проверить обновления";
@@ -447,26 +414,9 @@
 "quitConfirmAction" = "Завершить";
 "quitConfirmCancel" = "Отмена";
 
-/* Upload — toolbar / toast / progress */
-"tipUpload" = "Загрузить на хостинг изображений";
-"uploadingTitle" = "Загрузка";
-"uploadCopied" = "URL изображения скопирован";
-"uploadCopiedMarkdown" = "Ссылка Markdown скопирована";
-"uploadNoProvider" = "Сначала настройте хостинг в настройках";
-"uploadFailedPrefix" = "Не удалось загрузить";
 
-/* Upload — settings tab */
-"uploadDefaultProvider" = "Хостинг по умолчанию";
-"uploadDefaultNone" = "Отключено";
-"uploadSetDefaultButton" = "Сделать основным";
-"uploadSaveButton" = "Сохранить";
-"uploadClearButton" = "Очистить";
-"uploadSavedToast" = "Конфигурация сохранена";
-"uploadCurrentDefault" = "Текущий по умолчанию";
-"uploadMarkdownToggleTitle" = "Копировать как ссылку Markdown";
-"uploadMarkdownToggleSubtitle" = "Если включено, после загрузки копируется тег изображения Markdown (![](url)); если выключено — обычный URL. На панели истории щелчок по облачному изображению следует этой настройке, а кнопки при наведении выбирают MD или обычную ссылку";
 "filenameRuleTitle" = "Правила имени файла";
-"filenameRuleSubtitle" = "Управляет именами для загрузки изображений, сохранения изображений и сохранения записей. Расширения добавляются автоматически";
+"filenameRuleSubtitle" = "Задаёт имена файлов по умолчанию для изображений и записей экрана. Расширения добавляются автоматически";
 "filenameRulePresetLabel" = "Шаблон";
 "filenameRulePresetCustom" = "Свой";
 "filenameRulePresetShort" = "Короткий";
@@ -484,55 +434,10 @@
 "filenameRuleVariableSize" = "Размер";
 "filenameRulePreview" = "%@";
 
-/* Upload — provider field labels */
-"uploadFieldBucket" = "Бакет";
-"uploadFieldBucketSpace" = "Бакет";
-"uploadFieldRegion" = "Регион";
-"uploadFieldRegionOptional" = "Необязательный регион";
-"uploadFieldPathOptional" = "Необязательный путь";
-"uploadFieldCustomUrlOptional" = "Необязательный домен";
-"uploadFieldPublicDomain" = "Публичный домен";
-"uploadFieldEndpointArea" = "Эндпоинт";
-"uploadFieldEndpointOptional" = "Необязательный эндпоинт";
-"uploadFieldCustomEndpoint" = "Адрес загрузки";
-"uploadFieldCustomFileField" = "Имя поля файла";
-"uploadFieldCustomHeadersOptional" = "Заголовки необязательно";
-"uploadFieldCustomResponsePathOptional" = "Путь URL необязательно";
-"uploadFieldAccountId" = "ID аккаунта";
-"uploadTestImageFailed" = "Не удалось создать тестовое изображение";
 
-/* Upload — provider names */
-"providerTencentCOS" = "Tencent COS";
-"providerQiniuKodo" = "Qiniu Kodo";
-"providerCustomHTTP" = "Пользовательский HTTP хост";
-"providerAliyunOSS" = "Aliyun OSS";
 
-/* Upload — errors */
-"uploadErrMissingConfig" = "Хостинг не настроен";
-"uploadErrInvalidConfigPrefix" = "Неверная конфигурация";
-"uploadErrNetworkPrefix" = "Ошибка сети";
-"uploadErrServerPrefix" = "Не удалось загрузить код %d";
-"uploadCustomInvalidEndpoint" = "Укажите HTTPS или локальный HTTP адрес";
-"uploadCustomInvalidFileField" = "Имя поля файла содержит недопустимые символы";
-"uploadCustomInvalidHeader" = "Заголовки должны иметь формат Header: Value";
-"uploadCustomResponseURLMissing" = "В ответе не найден действительный URL изображения";
-"uploadErrUnexpectedResponsePrefix" = "Неожиданный ответ";
-"missingField" = "Отсутствует %@";
 
-/* Upload — test/validation pill */
-"uploadStatusUntested" = "Не проверено";
-"uploadStatusTesting" = "Проверка";
-"uploadStatusValid" = "Активно";
-"uploadStatusInvalid" = "Неверная конфигурация";
 
-/* Upload — log lines */
-"uploadLogStartingTest" = "Запуск тестовой загрузки";
-"uploadLogConfigSaved" = "Конфигурация сохранена";
-"uploadLogMissingFields" = "Отсутствуют обязательные поля: %@";
-"uploadLogTestSucceeded" = "Тестовая загрузка успешна: %@";
-"uploadLogTestFailed" = "Тестовая загрузка не удалась: %@";
-"uploadLogProviderDisabled" = "Хостинг отключён";
-"uploadLogConfigCleared" = "Конфигурация очищена";
 
 /* Permissions — status label */
 "permissionGranted" = "Предоставлено";
@@ -600,54 +505,16 @@
 "translationErrBadEndpoint" = "Неверный эндпоинт";
 "translationErrBadResponse" = "Неожиданный ответ";
 
-/* Image Merge */
-"imageMergeShortcutHeader" = "Объединить изображения";
-"imageMergeShortcutDefaultDisplay" = "Не задано";
-"shortcutConflictImageMerge" = "Это сочетание уже используется для объединения изображений. Выберите другое";
-"mergeImages" = "Объединить изображения";
-"mergeEditExitHint" = "Редактируется объединенное изображение. Нажмите X, чтобы выйти";
-"imageMergeNeedTwoImages" = "Выберите в Finder не менее двух изображений для объединения";
-"imageMergeSomeImagesSkipped" = "Некоторые изображения не удалось загрузить";
-"imageMergeNoClipboardImage" = "В буфере обмена нет изображения";
-"imageMergeFailed" = "Не удалось объединить изображения";
-"imageMergeSaved" = "Объединенное изображение сохранено";
-"imageMergeWindowTitle" = "Объединить изображения";
-"imageMergeSources" = "Источники";
-"imageMergeAddFiles" = "Добавить файлы";
-"imageMergeAddFromClipboard" = "Добавить из буфера";
-"imageMergeImageList" = "Изображения";
-"imageMergeTemplate" = "Расположение";
-"imageMergeTemplateHorizontal" = "Горизонтально";
-"imageMergeTemplateVertical" = "Вертикально";
-"imageMergeTemplateGrid" = "Сетка";
-"imageMergeTemplateLongStitch" = "Длинная склейка";
-"imageMergeLayout" = "Макет";
-"imageMergeSpacing" = "Интервал";
-"imageMergeMargin" = "Внешний отступ";
-"imageMergeCornerRadius" = "Скругление";
-"imageMergeBackground" = "Фон";
-"imageMergeTransparent" = "Прозрачный";
-"imageMergeSolid" = "Сплошной";
-"imageMergeOutput" = "Вывод";
-"imageMergeCopy" = "Копировать";
-"imageMergeSave" = "Сохранить";
-"imageMergeContinueEditing" = "Редактировать";
-"imageMergeClose" = "Закрыть";
-"imageMergeEmptyTitle" = "Перетащите изображения для объединения";
-"imageMergeEmptyBody" = "Добавьте файлы, вставьте из буфера или перетащите изображения сюда";
-"imageMergeClipboardSourceName" = "Изображение из буфера";
 
 /* Screenshot quality */
 "screenshotQualityTitle" = "Качество снимков";
-"screenshotQualitySubtitle" = "Снимки обрабатываются перед загрузкой, сохранением или копированием, по умолчанию оригинал";
-"screenshotQualityUploadLabel" = "Загрузка";
+"screenshotQualitySubtitle" = "Выбранное качество применяется при сохранении и копировании. По умолчанию сохраняется оригинал";
 "screenshotQualitySaveLabel" = "Сохранить в файл";
 "screenshotQualityClipboardLabel" = "Копировать в буфер";
 "screenshotQualityOriginal" = "Оригинал";
 "screenshotQualityOriginalHint" = "PNG в полном размере и без потерь, самый большой файл";
 "screenshotQualityCompressed" = "Сжатый";
 "screenshotQualityCompressedHint" = "Сохраняет исходные размеры и применяет локальное PNG сжатие";
-"screenshotQualityCompressingUpload" = "Сжатие перед загрузкой";
 "screenshotQualityCompressingSave" = "Сжатие перед сохранением";
 "screenshotQualityCompressingClipboard" = "Сжатие перед копированием";
 "screenshotCompressionFailed" = "Не удалось сжать изображение";
@@ -685,33 +552,9 @@
 
 /* Magnifier lens panel */
 "magnifierLensPanelCoordinatesLabel" = "Координаты";
-"magnifierLensPanelColorValueLabel" = "Цвет";
 "magnifierLensPanelCoordinates" = "Координаты: %@, %@";
-"magnifierLensPanelHex" = "HEX: %@";
-"magnifierLensPanelRgb" = "RGB: %@";
-"magnifierLensPanelRgbString" = "rgb(%d, %d, %d)";
-"magnifierLensPanelCopyHint" = "Копировать цвет(C)";
-"magnifierLensPanelFormatHint" = "Формат(F)";
 "magnifierLensPanelAspectFree" = "Свободно";
 "magnifierLensPanelAspectHint" = "Пропорц.(R)";
-/* Загрузка файлов */
-"fileUploadShortcutHeader" = "Загрузить файлы";
-"finderUploadShortcutDefaultDisplay" = "Не задано";
-"shortcutConflictFileUpload" = "Это сочетание уже используется для загрузки файлов. Выберите другое";
-"uploadFilesMenu" = "Загрузить файлы";
-"finderUploadDialogTitle" = "Загрузка на фотохостинг";
-"finderUploadDialogHeading" = "Файлы для загрузки";
-"finderUploadSummary" = "Выбрано файлов: %d · %@";
-"finderUploadSelectAll" = "Выбрать все";
-"finderUploadAction" = "Загрузить файлов: %d";
-"finderUploadRetryAction" = "Повторить для файлов: %d";
-"finderUploadingProgress" = "Загрузка %d/%d";
-"finderUploadSucceeded" = "Загружено";
-"finderUploadFailed" = "Ошибка";
-"finderUploadErrorLogTitle" = "Журнал ошибок";
-"finderUploadUnknownSize" = "Размер неизвестен";
-"finderUploadReadFailed" = "Не удалось прочитать файл %@";
-"finderUploadCompleted" = "Загружено файлов: %d, ссылки скопированы";
 
 "historyNotchTriggerLabel" = "Активация выреза";
 "historyNotchTriggerHover" = "Открывать при наведении";
@@ -724,7 +567,6 @@
 "settingsGeneralHistory" = "История";
 "settingsGeneralFiles" = "Файлы и вывод";
 
-"historyPreviewTextSaveFailed" = "Не удалось сохранить текст, попробуйте ещё раз";
 
 "windowCapturePreparing" = "Подготовка снимка экрана";
 
@@ -754,25 +596,8 @@
 "ocrTimeoutError" = "Время ожидания OCR истекло · Проверьте сервис или повторите попытку";
 "ocrRequestFailed" = "Ошибка запроса OCR";
 
-"historyPanelFilterFiles" = "Файлы";
 
 "historyPanelFolder" = "Папка";
-
-"historyPanelSearchFiles" = "Поиск по именам и путям файлов";
-
-"historyPanelSourceUnavailable" = "Исходный файл недоступен";
-
-"historyPanelSourceUnavailableHint" = "Некоторые исходные файлы удалены, не подключены или не загружены";
-
-"historyFilePreviewPrevious" = "Предыдущий файл";
-
-"historyFilePreviewNext" = "Следующий файл";
-
-"historyFilePreviewLoading" = "Загрузка предпросмотра";
-
-"historyFilePreviewRetry" = "Проверить снова";
-
-"historyFilePreviewUnavailable" = "Предпросмотр этого файла недоступен";
 "editorStrokeWidth" = "Толщина линии";
 "editorFontSize" = "Размер шрифта";
 "ocrPinPanel" = "Закрепить панель";

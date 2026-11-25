@@ -17,10 +17,7 @@
 "showCopyToast" = "Hiện thông báo sao chép";
 "showCopyToastHint" = "Tắt để ẩn thông báo khi nội dung được sao chép vào bảng tạm";
 "historyCacheToggleLabel" = "Lưu ảnh chụp vào bộ nhớ";
-"historyCacheToggleHint" = "Lưu ảnh chụp gần đây, màu đã chọn và liên kết tải lên để sao chép lại nhanh từ bảng lịch sử";
-"clipboardTextCacheToggleLabel" = "Ghi lại văn bản và tệp bảng nhớ tạm";
-"clipboardTextCacheToggleHint" = "Lưu văn bản và tham chiếu tệp nguồn mà không sao chép tệp";
-"clipboardTextHistoryLimitLabel" = "Giới hạn lịch sử văn bản / tệp";
+"historyCacheToggleHint" = "Lưu ảnh chụp và bản ghi màn hình gần đây để dùng lại nhanh từ bảng lịch sử";
 "historyCacheLabel" = "Giới hạn lịch sử hình ảnh và phương tiện";
 "historyPanelDisplayModeLabel" = "Cách hiển thị bảng lịch sử";
 "historyPanelDisplayModeHint" = "Chọn Hộp thoại hoặc tai thỏ để xem lịch sử";
@@ -68,8 +65,8 @@
 "pinToolbarCopy" = "Sao chép ảnh đã ghim";
 "pinToolbarDrag" = "Kéo ảnh đã ghim";
 "pinToolbarEdit" = "Sửa ảnh đã ghim";
-"pinToolbarEditText" = "Sửa văn bản";
 "pinToolbarCloseText" = "Đóng";
+"pinToolbarEditText" = "Sửa văn bản";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "Chỉnh sửa ảnh đã chọn";
@@ -88,8 +85,6 @@
 "recordShortcutDefaultDisplay" = "Chưa đặt";
 "fullScreenScreenshotShortcutHeader" = "Chụp toàn màn hình";
 "fullScreenScreenshotShortcutDefaultDisplay" = "Chưa đặt";
-"colorPickerShortcutHeader" = "Chọn màu";
-"colorPickerShortcutDefaultDisplay" = "Chưa đặt";
 
 /* Copy-to-clipboard shortcut (editor confirm) */
 "clipboardShortcutHeader" = "Sao chép vào clipboard";
@@ -124,13 +119,11 @@
 "shortcutConflictScreenshotTranslation" = "Tổ hợp phím này đã được dùng cho phím tắt dịch ảnh chụp màn hình. Vui lòng chọn tổ hợp khác";
 "shortcutConflictRecord" = "Tổ hợp phím này đã được dùng cho phím tắt ghi màn hình. Vui lòng chọn tổ hợp khác";
 "shortcutConflictFullScreenScreenshot" = "Tổ hợp phím này đã được dùng cho phím tắt chụp toàn màn hình. Vui lòng chọn tổ hợp khác";
-"shortcutConflictColorPicker" = "Tổ hợp phím này đã được dùng cho phím tắt Chọn màu. Vui lòng chọn tổ hợp khác";
 
 /* Menu bar */
 "takeScreenshot" = "Chụp màn hình";
 "takeFullScreenScreenshot" = "Chụp toàn màn hình";
 "record" = "Ghi màn hình";
-"colorPicker" = "Chọn màu";
 "settings" = "Cài đặt";
 "quitApp" = "Thoát capcap";
 "historyMenu" = "Lịch sử";
@@ -152,33 +145,17 @@
 "historyPanelFavoriteFailed" = "Không thể thay đổi mục yêu thích";
 "historyDeletedSkippingFavorites" = "Đã xóa %d mục, bỏ qua %d mục yêu thích";
 "historyPanelFilterAll" = "Tất cả";
+"historyPanelFilterFavorites" = "Yêu thích";
 "historyPanelFilterScreenshots" = "Ảnh chụp";
 "historyPanelFilterGIF" = "GIF";
 "historyPanelFilterMP4" = "MP4";
-"historyPanelFilterColors" = "Màu";
-"historyPanelFilterText" = "Văn bản";
-"historyPanelSearchColorsAndText" = "Tìm màu, văn bản và tệp";
-"historyPanelSearchColors" = "Tìm màu";
-"historyPanelSearchText" = "Tìm văn bản";
-"historyPanelClearSearch" = "Xóa tìm kiếm";
-"historyPanelSearchNoResults" = "Không có lịch sử phù hợp";
-"historyPreviewCopyText" = "Sao chép văn bản";
-"historyPreviewTranslateText" = "Dịch văn bản";
-"historyPreviewConvertToQRCode" = "Chuyển thành mã QR";
-"historyPreviewQRCodeTooLong" = "Văn bản quá dài nên không thể chuyển thành mã QR";
-"historyPreviewOriginalText" = "Văn bản gốc";
-"historyPreviewQRCodeTitle" = "Mã QR văn bản";
-"historyPanelCopyHint" = "Nhấp để sao chép";
 "historyPanelCopyDragHint" = "Nhấp để sao chép · kéo vào ứng dụng";
-"historyPanelCopyMarkdownLink" = "Sao chép liên kết MD";
-"historyPanelCopyPlainLink" = "Sao chép liên kết thường";
 "historyPanelEmpty" = "Chưa có lịch sử";
 "historyPanelShortcutGuide" = "Phím tắt";
 "historyPanelShortcutGuideHide" = "Quay lại lịch sử";
 "historyPanelShortcutKeyClick" = "Nhấp";
 "historyPanelShortcutKeyDrag" = "Kéo";
 "historyPanelShortcutKeySpace" = "Phím cách";
-"historyPanelShortcutSearch" = "Mở hoặc đóng tìm kiếm";
 "historyPanelShortcutSwitchFilter" = "Chuyển danh mục";
 "historyPanelShortcutSwitchItem" = "Chuyển sang mục trước hoặc tiếp theo";
 "historyPanelShortcutToggleSelection" = "Chọn hoặc bỏ chọn một mục";
@@ -193,9 +170,6 @@
 "historyPanelShortcutCopyPreview" = "Sao chép nội dung xem trước";
 "historyPanelShortcutEditImage" = "Sửa ảnh";
 "historyPanelShortcutPinImage" = "Ghim ảnh";
-"historyPanelShortcutUploadImage" = "Tải ảnh lên";
-"historyPanelShortcutTranslateText" = "Dịch văn bản";
-"historyPanelShortcutQRCode" = "Tạo mã QR";
 "historyPanelShortcutToggleGuide" = "Hiện hoặc ẩn phím tắt";
 
 /* Cursor chip */
@@ -249,7 +223,6 @@
 "recordingStop" = "Dừng ghi";
 "recordingPause" = "Tạm dừng";
 "recordingResume" = "Tiếp tục";
-"colorCopied" = "Đã sao chép màu %@";
 "qrCodeCopied" = "Đã sao chép nội dung mã QR";
 "qrCodeNotFound" = "Không tìm thấy mã QR";
 
@@ -275,8 +248,6 @@
 "tipMoreEmoji" = "Thêm emoji";
 "tipMoreBeautifyPresets" = "Thêm mẫu làm đẹp";
 "tipInsertImage" = "Chèn ảnh";
-"tipColorPicker" = "Chọn màu";
-"tipPickedInkBottle" = "Dùng công cụ chọn màu để đổ màu vào lọ mực";
 "tipUndo" = "Hoàn tác";
 "tipRedo" = "Làm lại";
 "tipMoveSelection" = "Di chuyển vùng chọn";
@@ -351,7 +322,6 @@
 "settingsTabGeneral" = "Chung";
 "settingsTabShortcuts" = "Phím tắt";
 "settingsTabPermissions" = "Quyền";
-"settingsTabUpload" = "Tải lên";
 "settingsTabAbout" = "Giới thiệu";
 "settingsTabTranslation" = "Dịch";
 "settingsTabToolbar" = "Thanh công cụ";
@@ -385,9 +355,6 @@
 "aboutTagline" = "Công cụ chụp màn hình trên thanh menu";
 "aboutLicense" = "Giấy phép";
 "aboutSourceCode" = "Mã nguồn";
-"aboutStarOnGitHub" = "Đánh dấu sao capcap trên GitHub 🌟";
-"aboutFeatureRequest" = "Yêu cầu tính năng";
-"aboutBugReport" = "Báo lỗi";
 "aboutUpdateTitle" = "Cập nhật";
 "aboutErrorLog" = "Nhật ký lỗi";
 "aboutErrorLogNoCrash" = "Không có nhật ký lỗi";
@@ -397,7 +364,7 @@
 "aboutErrorLogReveal" = "Hiển thị trong Finder";
 "aboutErrorLogRefresh" = "Làm mới nhật ký";
 "aboutErrorLogClear" = "Xóa nhật ký";
-"aboutErrorLogEmptyBody" = "capcap chưa ghi nhận nhật ký lỗi nào. Nếu ứng dụng bị treo hoặc thoát bất ngờ, hãy quay lại đây để sao chép nhật ký cho báo cáo lỗi";
+"aboutErrorLogEmptyBody" = "capcap chưa ghi nhận nhật ký lỗi nào";
 
 /* Updates — About pane */
 "checkForUpdates" = "Kiểm tra cập nhật";
@@ -447,26 +414,9 @@
 "quitConfirmAction" = "Thoát";
 "quitConfirmCancel" = "Hủy";
 
-/* Upload — toolbar / toast / progress */
-"tipUpload" = "Tải lên dịch vụ lưu trữ ảnh";
-"uploadingTitle" = "Đang tải lên";
-"uploadCopied" = "Đã sao chép URL ảnh";
-"uploadCopiedMarkdown" = "Đã sao chép liên kết Markdown";
-"uploadNoProvider" = "Hãy cấu hình dịch vụ tải lên trong Cài đặt trước";
-"uploadFailedPrefix" = "Tải lên thất bại";
 
-/* Upload — settings tab */
-"uploadDefaultProvider" = "Dịch vụ tải lên mặc định";
-"uploadDefaultNone" = "Đã tắt";
-"uploadSetDefaultButton" = "Đặt mặc định";
-"uploadSaveButton" = "Lưu";
-"uploadClearButton" = "Xóa";
-"uploadSavedToast" = "Đã lưu cấu hình";
-"uploadCurrentDefault" = "Mặc định hiện tại";
-"uploadMarkdownToggleTitle" = "Sao chép dưới dạng liên kết Markdown";
-"uploadMarkdownToggleSubtitle" = "Khi bật, sau khi tải lên sẽ sao chép thẻ ảnh Markdown (![](url)); khi tắt, sao chép URL thuần. Trong bảng Lịch sử, ảnh đám mây khi nhấp sẽ theo thiết lập này, với nút khi rê chuột để chọn MD hoặc liên kết thường";
 "filenameRuleTitle" = "Quy tắc tên tệp";
-"filenameRuleSubtitle" = "Điều khiển tên khi tải ảnh lên, tên mặc định khi lưu ảnh và khi lưu bản ghi. Phần mở rộng được tự động thêm";
+"filenameRuleSubtitle" = "Đặt tên tệp mặc định cho ảnh và bản ghi màn hình. Phần mở rộng được tự động thêm vào";
 "filenameRulePresetLabel" = "Mẫu";
 "filenameRulePresetCustom" = "Tùy chỉnh";
 "filenameRulePresetShort" = "Ngắn";
@@ -484,55 +434,10 @@
 "filenameRuleVariableSize" = "Kích thước";
 "filenameRulePreview" = "%@";
 
-/* Upload — provider field labels */
-"uploadFieldBucket" = "Bucket";
-"uploadFieldBucketSpace" = "Bucket";
-"uploadFieldRegion" = "Vùng";
-"uploadFieldRegionOptional" = "Vùng tùy chọn";
-"uploadFieldPathOptional" = "Đường dẫn tùy chọn";
-"uploadFieldCustomUrlOptional" = "URL tùy chỉnh không bắt buộc";
-"uploadFieldPublicDomain" = "Tên miền công khai";
-"uploadFieldEndpointArea" = "Endpoint";
-"uploadFieldEndpointOptional" = "Endpoint tùy chọn";
-"uploadFieldCustomEndpoint" = "Endpoint tải lên";
-"uploadFieldCustomFileField" = "Tên trường tệp";
-"uploadFieldCustomHeadersOptional" = "Header tùy chọn";
-"uploadFieldCustomResponsePathOptional" = "Đường dẫn URL tùy chọn";
-"uploadFieldAccountId" = "ID tài khoản";
-"uploadTestImageFailed" = "Không thể tạo ảnh thử nghiệm";
 
-/* Upload — provider names */
-"providerTencentCOS" = "Tencent COS";
-"providerQiniuKodo" = "Qiniu Kodo";
-"providerCustomHTTP" = "Host HTTP tùy chỉnh";
-"providerAliyunOSS" = "Aliyun OSS";
 
-/* Upload — errors */
-"uploadErrMissingConfig" = "Chưa cấu hình dịch vụ tải lên";
-"uploadErrInvalidConfigPrefix" = "Cấu hình không hợp lệ";
-"uploadErrNetworkPrefix" = "Lỗi mạng";
-"uploadErrServerPrefix" = "Tải lên thất bại mã %d";
-"uploadCustomInvalidEndpoint" = "Dùng endpoint HTTPS hoặc HTTP cục bộ";
-"uploadCustomInvalidFileField" = "Tên trường tệp chứa ký tự không hợp lệ";
-"uploadCustomInvalidHeader" = "Header phải có dạng Header: Value";
-"uploadCustomResponseURLMissing" = "Không tìm thấy URL ảnh hợp lệ trong phản hồi";
-"uploadErrUnexpectedResponsePrefix" = "Phản hồi không mong đợi";
-"missingField" = "Thiếu %@";
 
-/* Upload — test/validation pill */
-"uploadStatusUntested" = "Chưa kiểm tra";
-"uploadStatusTesting" = "Đang kiểm tra";
-"uploadStatusValid" = "Đang hoạt động";
-"uploadStatusInvalid" = "Cấu hình không hợp lệ";
 
-/* Upload — log lines */
-"uploadLogStartingTest" = "Đang bắt đầu tải lên thử nghiệm";
-"uploadLogConfigSaved" = "Đã lưu cấu hình";
-"uploadLogMissingFields" = "Thiếu trường bắt buộc: %@";
-"uploadLogTestSucceeded" = "Tải lên thử nghiệm thành công: %@";
-"uploadLogTestFailed" = "Tải lên thử nghiệm thất bại: %@";
-"uploadLogProviderDisabled" = "Đã tắt nhà cung cấp";
-"uploadLogConfigCleared" = "Đã xóa cấu hình";
 
 /* Permissions — status label */
 "permissionGranted" = "Đã cấp";
@@ -600,54 +505,16 @@
 "translationErrBadEndpoint" = "Endpoint không hợp lệ";
 "translationErrBadResponse" = "Phản hồi không mong đợi";
 
-/* Image Merge */
-"imageMergeShortcutHeader" = "Ghép ảnh";
-"imageMergeShortcutDefaultDisplay" = "Chưa đặt";
-"shortcutConflictImageMerge" = "Tổ hợp phím này đang được dùng cho phím tắt Ghép ảnh. Hãy chọn tổ hợp khác";
-"mergeImages" = "Ghép ảnh";
-"mergeEditExitHint" = "Đang chỉnh sửa ảnh ghép. Nhấn X để thoát chỉnh sửa";
-"imageMergeNeedTwoImages" = "Chọn ít nhất hai ảnh trong Finder để ghép";
-"imageMergeSomeImagesSkipped" = "Không thể tải một số ảnh";
-"imageMergeNoClipboardImage" = "Không có ảnh trong clipboard";
-"imageMergeFailed" = "Ghép ảnh thất bại";
-"imageMergeSaved" = "Đã lưu ảnh ghép";
-"imageMergeWindowTitle" = "Ghép ảnh";
-"imageMergeSources" = "Nguồn ảnh";
-"imageMergeAddFiles" = "Thêm tệp";
-"imageMergeAddFromClipboard" = "Thêm từ clipboard";
-"imageMergeImageList" = "Ảnh";
-"imageMergeTemplate" = "Kiểu sắp xếp";
-"imageMergeTemplateHorizontal" = "Ngang";
-"imageMergeTemplateVertical" = "Dọc";
-"imageMergeTemplateGrid" = "Lưới";
-"imageMergeTemplateLongStitch" = "Ghép ảnh dài";
-"imageMergeLayout" = "Bố cục";
-"imageMergeSpacing" = "Khoảng cách";
-"imageMergeMargin" = "Lề ngoài";
-"imageMergeCornerRadius" = "Bo góc";
-"imageMergeBackground" = "Nền";
-"imageMergeTransparent" = "Trong suốt";
-"imageMergeSolid" = "Màu đặc";
-"imageMergeOutput" = "Xuất";
-"imageMergeCopy" = "Sao chép";
-"imageMergeSave" = "Lưu";
-"imageMergeContinueEditing" = "Sửa";
-"imageMergeClose" = "Đóng";
-"imageMergeEmptyTitle" = "Thả ảnh để ghép";
-"imageMergeEmptyBody" = "Thêm tệp, dán từ clipboard hoặc kéo ảnh vào đây";
-"imageMergeClipboardSourceName" = "Ảnh clipboard";
 
 /* Screenshot quality */
 "screenshotQualityTitle" = "Chất lượng ảnh chụp";
-"screenshotQualitySubtitle" = "Ảnh chụp được xử lý trước khi tải lên, lưu hoặc sao chép, mặc định là bản gốc";
-"screenshotQualityUploadLabel" = "Tải lên";
+"screenshotQualitySubtitle" = "Chất lượng đã chọn được áp dụng khi lưu hoặc sao chép. Mặc định là chất lượng gốc";
 "screenshotQualitySaveLabel" = "Lưu vào tệp";
 "screenshotQualityClipboardLabel" = "Sao chép vào clipboard";
 "screenshotQualityOriginal" = "Bản gốc";
 "screenshotQualityOriginalHint" = "PNG kích thước đầy đủ và không mất chất lượng, tệp lớn nhất";
 "screenshotQualityCompressed" = "Đã nén";
 "screenshotQualityCompressedHint" = "Giữ nguyên kích thước và nén PNG cục bộ";
-"screenshotQualityCompressingUpload" = "Đang nén trước khi tải lên";
 "screenshotQualityCompressingSave" = "Đang nén trước khi lưu";
 "screenshotQualityCompressingClipboard" = "Đang nén trước khi sao chép";
 "screenshotCompressionFailed" = "Nén ảnh thất bại";
@@ -685,33 +552,9 @@
 
 /* Magnifier lens panel */
 "magnifierLensPanelCoordinatesLabel" = "Tọa độ";
-"magnifierLensPanelColorValueLabel" = "Màu";
 "magnifierLensPanelCoordinates" = "Tọa độ: %@, %@";
-"magnifierLensPanelHex" = "HEX: %@";
-"magnifierLensPanelRgb" = "RGB: %@";
-"magnifierLensPanelRgbString" = "rgb(%d, %d, %d)";
-"magnifierLensPanelCopyHint" = "Sao chép màu(C)";
-"magnifierLensPanelFormatHint" = "Định dạng(F)";
 "magnifierLensPanelAspectFree" = "Tự do";
 "magnifierLensPanelAspectHint" = "Tỷ lệ ảnh(R)";
-/* Tải tệp lên */
-"fileUploadShortcutHeader" = "Tải tệp lên";
-"finderUploadShortcutDefaultDisplay" = "Chưa đặt";
-"shortcutConflictFileUpload" = "Tổ hợp phím này đã được dùng cho phím tắt tải tệp lên. Vui lòng chọn tổ hợp khác";
-"uploadFilesMenu" = "Tải tệp lên";
-"finderUploadDialogTitle" = "Tải lên dịch vụ lưu ảnh";
-"finderUploadDialogHeading" = "Tệp sẽ tải lên";
-"finderUploadSummary" = "Đã chọn %d tệp · %@";
-"finderUploadSelectAll" = "Chọn tất cả";
-"finderUploadAction" = "Tải lên %d tệp";
-"finderUploadRetryAction" = "Thử lại %d tệp";
-"finderUploadingProgress" = "Đang tải %d/%d";
-"finderUploadSucceeded" = "Đã tải lên";
-"finderUploadFailed" = "Thất bại";
-"finderUploadErrorLogTitle" = "Nhật ký lỗi";
-"finderUploadUnknownSize" = "Không rõ kích thước";
-"finderUploadReadFailed" = "Không thể đọc tệp %@";
-"finderUploadCompleted" = "Đã tải %d tệp và sao chép liên kết";
 
 "historyNotchTriggerLabel" = "Cách mở tại vùng khuyết";
 "historyNotchTriggerHover" = "Mở khi di chuột qua";
@@ -724,7 +567,6 @@
 "settingsGeneralHistory" = "Lịch sử";
 "settingsGeneralFiles" = "Tệp và đầu ra";
 
-"historyPreviewTextSaveFailed" = "Không thể lưu văn bản, vui lòng thử lại";
 
 "windowCapturePreparing" = "Đang chuẩn bị ảnh chụp màn hình";
 
@@ -754,25 +596,8 @@
 "ocrTimeoutError" = "OCR hết thời gian chờ · Kiểm tra dịch vụ hoặc thử lại";
 "ocrRequestFailed" = "Yêu cầu OCR thất bại";
 
-"historyPanelFilterFiles" = "Tệp";
 
 "historyPanelFolder" = "Thư mục";
-
-"historyPanelSearchFiles" = "Tìm tên và đường dẫn tệp";
-
-"historyPanelSourceUnavailable" = "Tệp nguồn không khả dụng";
-
-"historyPanelSourceUnavailableHint" = "Một số tệp nguồn đã bị xóa, ngoại tuyến hoặc chưa tải xuống";
-
-"historyFilePreviewPrevious" = "Tệp trước";
-
-"historyFilePreviewNext" = "Tệp tiếp theo";
-
-"historyFilePreviewLoading" = "Đang tải bản xem trước";
-
-"historyFilePreviewRetry" = "Kiểm tra lại";
-
-"historyFilePreviewUnavailable" = "Không thể xem trước tệp này";
 "editorStrokeWidth" = "Độ dày nét";
 "editorFontSize" = "Cỡ chữ";
 "ocrPinPanel" = "Ghim bảng";

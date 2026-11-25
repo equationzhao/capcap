@@ -71,8 +71,7 @@ final class HistoryCopyPromotionPolicyTests: XCTestCase {
             HistoryEntry(
                 fileURL: URL(fileURLWithPath: "/tmp/history-\(index).png"),
                 createdAt: newestDate.addingTimeInterval(TimeInterval(-index)),
-                kind: .image,
-                cloudURL: nil
+                kind: .image
             )
         }
     }

@@ -3,17 +3,12 @@ import AVFoundation
 import AVKit
 import Carbon
 import ImageIO
-import UniformTypeIdentifiers
 
 private enum HistoryPanelLayout {
     static let headerTopInset: CGFloat = 12
     static let headerHeight: CGFloat = 36
-    static let headerControlInset: CGFloat = 8
+    static let headerButtonSize: CGFloat = 32
     static let verticalGap: CGFloat = 12
-    static let searchFieldWidth: CGFloat = 252
-    static let searchTransitionDuration: TimeInterval = 0.26
-    static let actionsHiddenOffset: CGFloat = 188
-    static let searchHiddenOffset: CGFloat = searchFieldWidth + 20
     static let filterFadeWidth: CGFloat = 20
 }
 
@@ -42,12 +37,6 @@ final class HistoryPanelController {
             self,
             selector: #selector(historyCacheEnabledChanged),
             name: .historyCacheEnabledDidChange,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(historyCacheEnabledChanged),
-            name: .clipboardTextCacheEnabledDidChange,
             object: nil
         )
         NotificationCenter.default.addObserver(
@@ -1030,57 +1019,14 @@ enum HistoryPanelFilter: CaseIterable, Equatable {
     case screenshots
     case gif
     case mp4
-    case colors
-    case text
-    case files
 
     var title: String {
         switch self {
         case .all: return L10n.historyPanelFilterAll
-        case .favorites: return L10n.historyPanelFavorite
+        case .favorites: return L10n.historyPanelFilterFavorites
         case .screenshots: return L10n.historyPanelFilterScreenshots
         case .gif: return L10n.historyPanelFilterGIF
         case .mp4: return L10n.historyPanelFilterMP4
-        case .colors: return L10n.historyPanelFilterColors
-        case .text: return L10n.historyPanelFilterText
-        case .files: return L10n.historyPanelFilterFiles
-        }
-    }
-
-    var symbolName: String? {
-        switch self {
-        case .favorites: return "star.fill"
-        case .all, .screenshots, .gif, .mp4, .colors, .text, .files: return nil
-        }
-    }
-
-    var searchScope: HistorySearchScope? {
-        switch self {
-        case .all, .favorites:
-            return .colorsAndText
-        case .colors:
-            return .colors
-        case .text:
-            return .text
-        case .files:
-            return .files
-        case .screenshots, .gif, .mp4:
-            return nil
-        }
-    }
-
-    var searchPlaceholder: String? {
-        switch self {
-        case .all, .favorites:
-            return L10n.historyPanelSearchColorsAndText
-        case .colors:
-            return L10n.historyPanelSearchColors
-        case .text:
-            return L10n.historyPanelSearchText
-        case .files:
-            return L10n.historyPanelSearchFiles
-        case .screenshots, .gif, .mp4:
-            return nil
         }
     }
 }
@@ -1100,9 +1046,15 @@ private final class HistoryPanelFilterDocumentView: NSView {
     override var isFlipped: Bool { true }
 }
 
+private final class HistoryPanelFilterControl: NSSegmentedControl {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { isEnabled }
+}
+
 private final class HistoryPanelFilterScrollView: NSScrollView {
+    private static let controlInset: CGFloat = 4
+
+    let control: NSSegmentedControl = HistoryPanelFilterControl()
     private let documentContainer = HistoryPanelFilterDocumentView()
-    private let toolbar = NSStackView()
     private let fadeMaskLayer = CAGradientLayer()
 
     override init(frame frameRect: NSRect) {
@@ -1121,11 +1073,14 @@ private final class HistoryPanelFilterScrollView: NSScrollView {
         contentView.postsBoundsChangedNotifications = true
         documentView = documentContainer
 
-        toolbar.orientation = .horizontal
-        toolbar.alignment = .centerY
-        toolbar.spacing = 8
-        toolbar.setContentHuggingPriority(.required, for: .horizontal)
-        documentContainer.addSubview(toolbar)
+        control.controlSize = .regular
+        control.segmentStyle = .rounded
+        control.segmentDistribution = .fit
+        control.trackingMode = .selectOne
+        if #available(macOS 26.0, *) {
+            control.borderShape = .capsule
+        }
+        documentContainer.addSubview(control)
 
         wantsLayer = true
         fadeMaskLayer.startPoint = CGPoint(x: 0, y: 0.5)
@@ -1138,8 +1093,10 @@ private final class HistoryPanelFilterScrollView: NSScrollView {
     }
 
     override var intrinsicContentSize: NSSize {
-        let contentSize = toolbar.fittingSize
-        return NSSize(width: contentSize.width, height: 28)
+        NSSize(
+            width: control.intrinsicContentSize.width + 2 * Self.controlInset,
+            height: HistoryPanelLayout.headerHeight
+        )
     }
 
     override func layout() {
@@ -1152,68 +1109,68 @@ private final class HistoryPanelFilterScrollView: NSScrollView {
         updateFadeMask()
     }
 
-    func addFilterButton(_ button: NSView) {
-        toolbar.addArrangedSubview(button)
-        contentDidChange()
-    }
-
-    func contentDidChange() {
-        toolbar.needsLayout = true
-        toolbar.layoutSubtreeIfNeeded()
+    func setFilters(_ filters: [HistoryPanelFilter]) {
+        control.segmentCount = filters.count
+        let font = control.font ?? .systemFont(ofSize: NSFont.systemFontSize(for: control.controlSize))
+        for (index, filter) in filters.enumerated() {
+            let title = filter.title
+            let titleWidth = ceil(title.size(withAttributes: [.font: font]).width)
+            control.setLabel(title, forSegment: index)
+            control.setWidth(max(44, titleWidth + 22), forSegment: index)
+        }
+        control.invalidateIntrinsicContentSize()
         invalidateIntrinsicContentSize()
         needsLayout = true
     }
 
-    func reveal(_ view: NSView) {
+    func revealSelection() {
+        let index = control.selectedSegment
+        let count = control.segmentCount
+        guard (0..<count).contains(index) else { return }
         layoutSubtreeIfNeeded()
-        let visibleFilters = toolbar.arrangedSubviews.filter { !$0.isHidden }
-        if let selectedIndex = visibleFilters.firstIndex(where: { $0 === view }) {
-            switch HistoryPanelFilterRevealPolicy.anchor(
-                selectedIndex: selectedIndex,
-                filterCount: visibleFilters.count
-            ) {
-            case .leading:
-                scroll(toX: 0)
-                return
-            case .trailing:
-                scroll(toX: .greatestFiniteMagnitude)
-                return
-            case .nearest:
-                break
-            }
-        }
-
         let visibleBounds = contentView.bounds
-        let viewFrame = view.convert(view.bounds, to: documentContainer)
-        let leadingPadding: CGFloat = 4
-        let trailingPadding = HistoryPanelLayout.filterFadeWidth + 4
-        var targetX = visibleBounds.origin.x
-
-        if viewFrame.minX < visibleBounds.minX + leadingPadding {
-            targetX = viewFrame.minX - leadingPadding
-        } else if viewFrame.maxX > visibleBounds.maxX - trailingPadding {
-            targetX = viewFrame.maxX - visibleBounds.width + trailingPadding
+        guard visibleBounds.width > 0, documentContainer.bounds.width > visibleBounds.width else { return }
+        switch HistoryPanelFilterRevealPolicy.anchor(selectedIndex: index, filterCount: count) {
+        case .leading:
+            scroll(toX: 0)
+        case .trailing:
+            scroll(toX: .greatestFiniteMagnitude)
+        case .nearest:
+            revealSegment(at: index, in: visibleBounds)
         }
+    }
 
-        scroll(toX: targetX)
+    private func revealSegment(at index: Int, in visibleBounds: NSRect) {
+        let widths = (0..<control.segmentCount).map { control.width(forSegment: $0) }
+        let totalWidth = widths.reduce(0, +)
+        guard totalWidth > 0 else { return }
+        let scale = control.frame.width / totalWidth
+        let minX = control.frame.minX + widths.prefix(index).reduce(0, +) * scale
+        let width = widths[index] * scale
+        let maxX = minX + width
+        let inset = min(HistoryPanelLayout.filterFadeWidth, max(0, (visibleBounds.width - width) / 2))
+        if minX < visibleBounds.minX + inset {
+            scroll(toX: minX - inset)
+        } else if maxX > visibleBounds.maxX - inset {
+            scroll(toX: maxX - visibleBounds.width + inset)
+        }
     }
 
     private func layoutDocument() {
-        toolbar.layoutSubtreeIfNeeded()
-        let toolbarSize = toolbar.fittingSize
+        let controlSize = control.intrinsicContentSize
         let viewportSize = contentView.bounds.size
-        let documentWidth = max(viewportSize.width, toolbarSize.width)
+        let documentWidth = max(viewportSize.width, controlSize.width + 2 * Self.controlInset)
         documentContainer.frame = NSRect(
             x: 0,
             y: 0,
             width: documentWidth,
             height: viewportSize.height
         )
-        toolbar.frame = NSRect(
-            x: 0,
-            y: max(0, (viewportSize.height - toolbarSize.height) / 2),
-            width: toolbarSize.width,
-            height: toolbarSize.height
+        control.frame = NSRect(
+            x: Self.controlInset,
+            y: max(0, (viewportSize.height - controlSize.height) / 2),
+            width: controlSize.width,
+            height: controlSize.height
         )
 
         scroll(toX: contentView.bounds.origin.x)
@@ -1283,7 +1240,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     var onLockStateChanged: ((Bool) -> Void)?
 
     private var selectedFilter: HistoryPanelFilter = .all
-    private var filterButtons: [HistoryPanelFilter: HistoryPanelFilterButton] = [:]
     private let filterScrollView = HistoryPanelFilterScrollView()
     private let entriesQueue = DispatchQueue(label: "capcap.historyPanelEntries", qos: .userInitiated)
     private let scrollView = HistoryPanelScrollView()
@@ -1292,28 +1248,28 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     private let emptyLabel = NSTextField(labelWithString: "")
     private let deleteButton = HistoryPanelDeleteButton()
     private let infoButton = HistoryPanelActionButton(
-        symbolName: "info.circle",
-        accessibilityLabel: L10n.historyPanelShortcutGuide
+        symbolName: "keyboard",
+        accessibilityLabel: L10n.historyPanelShortcutGuide,
+        isToggle: true
     )
     private let finderButton = HistoryPanelActionButton(symbolName: "folder", accessibilityLabel: L10n.historyShowInFinder)
-    private let lockButton = HistoryPanelActionButton(symbolName: "lock", accessibilityLabel: L10n.historyPanelLock)
+    private let lockButton = HistoryPanelActionButton(
+        symbolName: "lock",
+        accessibilityLabel: L10n.historyPanelLock,
+        isToggle: true
+    )
     private let settingsButton = HistoryPanelActionButton(symbolName: "gearshape", accessibilityLabel: L10n.settings)
-    private let actionButtonsContainer = NSStackView()
-    private let searchField = HistoryPanelSearchField()
     private let shortcutGuideView: HistoryPanelShortcutGuideView
     private var deleteButtonWidthConstraint: NSLayoutConstraint?
-    private var actionButtonsTrailingConstraint: NSLayoutConstraint?
-    private var searchFieldTrailingConstraint: NSLayoutConstraint?
     private var confirmationDismissMonitor: Any?
     private var selectionKeyMonitor: Any?
     private var previewController: HistoryPreviewWindowController?
-    private var filePreviewController: HistoryFileQuickLookWindowController?
     private weak var activeHoverTile: HistoryPanelTileView?
     private var keyboardEntryID: String?
     private var keyboardMouseOrigin: NSPoint?
     private var allEntries: [HistoryEntry] = []
     private var visibleEntries: [HistoryEntry] = []
-    private var availableFilters: Set<HistoryPanelFilter> = [.all]
+    private var availableFilters: [HistoryPanelFilter] = [.all]
     private var renderedEntryCount = 0
     private var isAppendingPage = false
     private var selectedEntryIDs: [String] = []
@@ -1332,15 +1288,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     private var isScrollingContent = false
     private var isShowingShortcutGuide = false
     private var isLocked = false
-    private var isSearchMode = false
-    private var isSearchInputActive = false
-    private var searchMouseMovementMonitor: Any?
-    private var searchMouseTrackingTimer: Timer?
-    private var searchMouseOrigin: NSPoint?
-    private var searchQuery = ""
-    private var searchApplyWorkItem: DispatchWorkItem?
-    private var searchGeneration = 0
-    private var searchAnimationGeneration = 0
     private var filterViewportWidthConstraint: NSLayoutConstraint?
 
     init(
@@ -1384,8 +1331,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         NotificationCenter.default.removeObserver(self)
         stopConfirmationDismissMonitoring()
         stopSelectionKeyMonitoring()
-        stopSearchMouseMovementTracking()
-        searchApplyWorkItem?.cancel()
         hoverSyncWorkItem?.cancel()
         previewPrefetchRequests.values.forEach { $0.cancel() }
         previewController?.close()
@@ -1400,36 +1345,22 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     func updateNotchGeometry(_ geometry: HistoryNotchGeometry) {
         guard presentation == .notch else { return }
         filterViewportWidthConstraint?.constant = geometry.filterViewportWidth(
-            headerInset: presentation.headerInset + HistoryPanelLayout.headerControlInset
+            headerInset: presentation.headerInset
         )
         needsLayout = true
     }
 
     private func setupUI() {
-        let headerSurface = FloatingGlassView(
-            cornerRadius: HistoryPanelLayout.headerHeight / 2,
-            interactive: true,
-            blendingMode: .withinWindow
-        )
-        headerSurface.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(headerSurface)
-        let header = headerSurface.content
-        header.wantsLayer = true
-        header.layer?.masksToBounds = true
+        let header = NSView()
+        header.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(header)
 
+        filterScrollView.control.target = self
+        filterScrollView.control.action = #selector(filterClicked(_:))
         filterScrollView.translatesAutoresizingMaskIntoConstraints = false
         filterScrollView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         filterScrollView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         header.addSubview(filterScrollView)
-
-        for filter in HistoryPanelFilter.allCases {
-            let button = HistoryPanelFilterButton(filter: filter)
-            button.target = self
-            button.action = #selector(filterClicked(_:))
-            filterButtons[filter] = button
-            filterScrollView.addFilterButton(button)
-        }
-        updateFilterAvailability(availableFilters: [.all])
 
         finderButton.target = self
         finderButton.action = #selector(showHistoryInFinderClicked)
@@ -1446,30 +1377,28 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         deleteButton.target = self
         deleteButton.action = #selector(deleteHistoryClicked)
 
-        actionButtonsContainer.orientation = .horizontal
-        actionButtonsContainer.alignment = .centerY
-        actionButtonsContainer.spacing = 8
-        actionButtonsContainer.translatesAutoresizingMaskIntoConstraints = false
-        actionButtonsContainer.addArrangedSubview(deleteButton)
-        actionButtonsContainer.addArrangedSubview(infoButton)
-        actionButtonsContainer.addArrangedSubview(finderButton)
-        actionButtonsContainer.addArrangedSubview(lockButton)
-        actionButtonsContainer.addArrangedSubview(settingsButton)
-        header.addSubview(actionButtonsContainer)
+        let utilities = NSStackView(views: [finderButton, lockButton, infoButton, settingsButton])
+        utilities.orientation = .horizontal
+        utilities.alignment = .centerY
+        utilities.spacing = 2
+        utilities.setCustomSpacing(8, after: lockButton)
+        utilities.translatesAutoresizingMaskIntoConstraints = false
 
-        searchField.translatesAutoresizingMaskIntoConstraints = false
-        searchField.alphaValue = 0
-        searchField.isHidden = true
-        searchField.onTextChanged = { [weak self] query in
-            self?.searchTextDidChange(query)
-        }
-        searchField.onClear = { [weak self] in
-            self?.clearSearchText()
-        }
-        searchField.onEditingStateChanged = { [weak self] isEditing in
-            self?.setSearchInputActive(isEditing)
-        }
-        header.addSubview(searchField)
+        let utilitySurface = FloatingGlassView(
+            cornerRadius: HistoryPanelLayout.headerHeight / 2,
+            interactive: true,
+            blendingMode: .withinWindow
+        )
+        utilitySurface.translatesAutoresizingMaskIntoConstraints = false
+        utilitySurface.content.addSubview(utilities)
+
+        let actions = NSStackView(views: [deleteButton, utilitySurface])
+        actions.orientation = .horizontal
+        actions.alignment = .centerY
+        actions.spacing = 10
+        actions.translatesAutoresizingMaskIntoConstraints = false
+        header.addSubview(actions)
+
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.drawsBackground = false
         scrollView.hasHorizontalScroller = false
@@ -1516,56 +1445,41 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
 
         let inset = presentation.outerInset
         let headerInset = presentation.headerInset
-        let deleteWidth = deleteButton.widthAnchor.constraint(equalToConstant: HistoryPanelDeleteButton.collapsedWidth)
+        let deleteWidth = deleteButton.widthAnchor.constraint(equalToConstant: HistoryPanelLayout.headerButtonSize)
         deleteButtonWidthConstraint = deleteWidth
-        let actionButtonsTrailing = actionButtonsContainer.trailingAnchor.constraint(
-            equalTo: header.trailingAnchor,
-            constant: -HistoryPanelLayout.headerControlInset
-        )
-        let searchFieldTrailing = searchField.trailingAnchor.constraint(
-            equalTo: header.trailingAnchor,
-            constant: HistoryPanelLayout.searchHiddenOffset
-        )
-        let filterViewportWidth = filterScrollView.widthAnchor.constraint(equalToConstant: 1)
+        let filterViewportWidth = filterScrollView.widthAnchor.constraint(lessThanOrEqualToConstant: 1)
         filterViewportWidth.isActive = presentation == .notch
         filterViewportWidthConstraint = filterViewportWidth
-        actionButtonsTrailingConstraint = actionButtonsTrailing
-        searchFieldTrailingConstraint = searchFieldTrailing
         NSLayoutConstraint.activate([
-            headerSurface.topAnchor.constraint(equalTo: topAnchor, constant: HistoryPanelLayout.headerTopInset),
-            headerSurface.leadingAnchor.constraint(equalTo: leadingAnchor, constant: headerInset),
-            headerSurface.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -headerInset),
-            headerSurface.heightAnchor.constraint(equalToConstant: HistoryPanelLayout.headerHeight),
+            header.topAnchor.constraint(equalTo: topAnchor, constant: HistoryPanelLayout.headerTopInset),
+            header.leadingAnchor.constraint(equalTo: leadingAnchor, constant: headerInset),
+            header.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -headerInset),
+            header.heightAnchor.constraint(equalToConstant: HistoryPanelLayout.headerHeight),
 
-            filterScrollView.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: HistoryPanelLayout.headerControlInset),
-            filterScrollView.centerYAnchor.constraint(equalTo: header.centerYAnchor),
-            filterScrollView.heightAnchor.constraint(equalToConstant: 28),
+            filterScrollView.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            filterScrollView.topAnchor.constraint(equalTo: header.topAnchor),
+            filterScrollView.bottomAnchor.constraint(equalTo: header.bottomAnchor),
             filterScrollView.trailingAnchor.constraint(
-                lessThanOrEqualTo: actionButtonsContainer.leadingAnchor,
-                constant: -12
-            ),
-            filterScrollView.trailingAnchor.constraint(
-                lessThanOrEqualTo: searchField.leadingAnchor,
+                lessThanOrEqualTo: actions.leadingAnchor,
                 constant: -12
             ),
 
             deleteWidth,
-            deleteButton.heightAnchor.constraint(equalToConstant: 28),
+            deleteButton.heightAnchor.constraint(equalToConstant: HistoryPanelLayout.headerButtonSize),
 
-            actionButtonsTrailing,
-            actionButtonsContainer.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            actions.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+            actions.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            utilitySurface.heightAnchor.constraint(equalToConstant: HistoryPanelLayout.headerHeight),
+            utilities.leadingAnchor.constraint(equalTo: utilitySurface.leadingAnchor, constant: 4),
+            utilities.trailingAnchor.constraint(equalTo: utilitySurface.trailingAnchor, constant: -4),
+            utilities.centerYAnchor.constraint(equalTo: utilitySurface.centerYAnchor),
 
-            searchFieldTrailing,
-            searchField.centerYAnchor.constraint(equalTo: header.centerYAnchor),
-            searchField.widthAnchor.constraint(equalToConstant: HistoryPanelLayout.searchFieldWidth),
-            searchField.heightAnchor.constraint(equalToConstant: 28),
-
-            scrollView.topAnchor.constraint(equalTo: headerSurface.bottomAnchor, constant: HistoryPanelLayout.verticalGap),
+            scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: HistoryPanelLayout.verticalGap),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: inset),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -inset),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -presentation.contentBottomInset),
 
-            shortcutGuideView.topAnchor.constraint(equalTo: headerSurface.bottomAnchor),
+            shortcutGuideView.topAnchor.constraint(equalTo: header.bottomAnchor),
             shortcutGuideView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             shortcutGuideView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             shortcutGuideView.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -1591,10 +1505,9 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     }
 
     private func updateLocalizedCopy() {
-        for (filter, button) in filterButtons {
-            button.title = filter.title
-        }
-        filterScrollView.contentDidChange()
+        filterScrollView.control.setAccessibilityLabel(L10n.historyPanelMenu)
+        filterScrollView.setFilters(availableFilters)
+        updateFilterSelection()
         visibleCollectionTiles.forEach { $0.refreshFavoriteState() }
         updateDeleteButtonPresentation()
         infoButton.updateAccessibilityLabel(
@@ -1604,8 +1517,7 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         finderButton.updateAccessibilityLabel(L10n.historyShowInFinder)
         updateLockButtonPresentation()
         settingsButton.updateAccessibilityLabel(L10n.settings)
-        updateSearchPlaceholder()
-        updateEmptyLabel()
+        emptyLabel.stringValue = L10n.historyPanelEmpty
     }
 
     func setActive(_ active: Bool) {
@@ -1619,7 +1531,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
             }
         } else {
             clearKeyboardNavigation()
-            endSearchMode(animated: false)
             if isReloading {
                 needsEntriesReload = true
                 isReloading = false
@@ -1648,19 +1559,16 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         }
     }
 
-    @objc private func filterClicked(_ sender: HistoryPanelFilterButton) {
-        selectFilter(sender.filter)
+    @objc private func filterClicked(_ sender: NSSegmentedControl) {
+        guard availableFilters.indices.contains(sender.selectedSegment) else { return }
+        selectFilter(availableFilters[sender.selectedSegment])
     }
 
     private func selectFilter(_ filter: HistoryPanelFilter) {
         clearKeyboardNavigation()
         setShortcutGuideVisible(false)
-        if isSearchMode, filter.searchScope == nil {
-            endSearchMode(animated: true, updateResults: false)
-        }
         selectedFilter = filter
         setDeleteConfirmation(false, animated: true)
-        updateSearchPlaceholder()
         if hasLoadedEntries {
             applySelectedFilter(resetScrollPosition: true)
         } else {
@@ -1670,11 +1578,10 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     }
 
     private func cycleFilter(forward: Bool) {
-        let orderedFilters = HistoryPanelFilter.allCases.filter { availableFilters.contains($0) }
-        guard orderedFilters.count > 1,
-              let currentIndex = orderedFilters.firstIndex(of: selectedFilter) else { return }
-        let offset = forward ? 1 : orderedFilters.count - 1
-        selectFilter(orderedFilters[(currentIndex + offset) % orderedFilters.count])
+        let count = availableFilters.count
+        guard count > 1, let index = availableFilters.firstIndex(of: selectedFilter) else { return }
+        let offset = forward ? 1 : count - 1
+        selectFilter(availableFilters[(index + offset) % count])
     }
 
     private func moveEntry(forward: Bool) {
@@ -1748,235 +1655,10 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         return true
     }
 
-    private func beginSearchMode() {
-        guard isActive else { return }
-
-        setShortcutGuideVisible(false)
-        if selectedFilter.searchScope == nil {
-            selectedFilter = .all
-            updateFilterSelection()
-        }
-
-        setDeleteConfirmation(false, animated: false)
-        clearSelection()
-        updateSearchPlaceholder()
-
-        if isSearchMode {
-            focusSearchInput()
-            return
-        }
-
-        isSearchMode = true
-        searchQuery = ""
-        searchField.text = ""
-        updateSearchPresentation(searching: true, animated: true)
-        setSearchInputActive(true)
-        applySelectedFilter(resetScrollPosition: false)
-        DispatchQueue.main.async { [weak self] in
-            self?.focusSearchInput()
-        }
-    }
-
-    private func endSearchMode(animated: Bool, updateResults: Bool = true) {
-        guard isSearchMode else { return }
-        isSearchMode = false
-        setSearchInputActive(false)
-        searchField.resignFocus()
-        updateHistoryPreviewHotkey()
-        searchApplyWorkItem?.cancel()
-        searchApplyWorkItem = nil
-        searchGeneration += 1
-        searchQuery = ""
-        searchField.text = ""
-        updateSearchPresentation(searching: false, animated: animated)
-        updateEmptyLabel()
-        if updateResults, hasLoadedEntries {
-            applySelectedFilter(resetScrollPosition: false)
-        }
-    }
-
-    private func searchTextDidChange(_ query: String) {
-        guard isSearchMode else { return }
-        searchQuery = query
-        updateEmptyLabel()
-
-        searchApplyWorkItem?.cancel()
-        searchGeneration += 1
-        let generation = searchGeneration
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self, self.isSearchMode, self.searchGeneration == generation else { return }
-            self.searchApplyWorkItem = nil
-            self.applySelectedFilter(resetScrollPosition: true)
-        }
-        searchApplyWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: workItem)
-    }
-
-    private func clearSearchText() {
-        guard isSearchMode else { return }
-        searchField.text = ""
-        focusSearchInput()
-        searchQuery = ""
-        searchApplyWorkItem?.cancel()
-        searchApplyWorkItem = nil
-        updateEmptyLabel()
-        applySelectedFilter(resetScrollPosition: true)
-    }
-
-    private func focusSearchInput() {
-        guard isSearchMode else { return }
-        setSearchInputActive(true)
-        searchField.focus()
-    }
-
-    private func setSearchInputActive(_ active: Bool) {
-        let nextValue = isSearchMode && active
-        guard isSearchInputActive != nextValue else { return }
-        isSearchInputActive = nextValue
-        if nextValue {
-            clearKeyboardNavigation()
-            clearActiveHoverTile()
-            startSearchMouseMovementTracking(origin: moveCursorToSearchField())
-        } else {
-            stopSearchMouseMovementTracking()
-        }
-        updateHistoryPreviewHotkey()
-    }
-
-    private func moveCursorToSearchField() -> NSPoint {
-        guard let window else { return NSEvent.mouseLocation }
-
-        layoutSubtreeIfNeeded()
-        let fieldCenter = NSPoint(x: searchField.bounds.midX, y: searchField.bounds.midY)
-        let windowPoint = searchField.convert(fieldCenter, to: nil)
-        let screenPoint = window.convertPoint(toScreen: windowPoint)
-
-        // AppKit screen coordinates grow upward from the main display, while
-        // Core Graphics cursor coordinates grow downward from that display.
-        let mainDisplayTop = NSScreen.screens.first?.frame.maxY ?? 0
-        let cursorPoint = CGPoint(x: screenPoint.x, y: mainDisplayTop - screenPoint.y)
-        guard CGWarpMouseCursorPosition(cursorPoint) == .success else {
-            return NSEvent.mouseLocation
-        }
-        return screenPoint
-    }
-
-    private func startSearchMouseMovementTracking(origin: NSPoint) {
-        stopSearchMouseMovementTracking()
-        searchMouseOrigin = origin
-
-        searchMouseMovementMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
-        ) { [weak self] event in
-            self?.transitionSearchInputToResults()
-            return event
-        }
-
-        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            guard let self,
-                  self.isSearchMode,
-                  self.isSearchInputActive,
-                  let origin = self.searchMouseOrigin else { return }
-            let current = NSEvent.mouseLocation
-            guard hypot(current.x - origin.x, current.y - origin.y) >= 0.5 else { return }
-            self.transitionSearchInputToResults()
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        searchMouseTrackingTimer = timer
-    }
-
-    private func stopSearchMouseMovementTracking() {
-        if let searchMouseMovementMonitor {
-            NSEvent.removeMonitor(searchMouseMovementMonitor)
-            self.searchMouseMovementMonitor = nil
-        }
-        searchMouseTrackingTimer?.invalidate()
-        searchMouseTrackingTimer = nil
-        searchMouseOrigin = nil
-    }
-
-    private func transitionSearchInputToResults() {
-        guard isSearchMode, isSearchInputActive,
-              window?.makeFirstResponder(self) == true else { return }
-        setSearchInputActive(false)
-        syncHoverStateWithCurrentMouse()
-    }
-
-    private func updateSearchPlaceholder() {
-        let placeholder = selectedFilter.searchPlaceholder ?? L10n.historyPanelSearchColorsAndText
-        searchField.placeholder = placeholder
-    }
-
-    private func updateEmptyLabel() {
-        let hasSearchQuery = isSearchMode
-            && !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        emptyLabel.stringValue = hasSearchQuery
-            ? L10n.historyPanelSearchNoResults
-            : L10n.historyPanelEmpty
-    }
-
-    private func updateSearchPresentation(searching: Bool, animated: Bool) {
-        searchAnimationGeneration += 1
-        let generation = searchAnimationGeneration
-
-        searchField.isHidden = false
-        actionButtonsContainer.isHidden = false
-        layoutSubtreeIfNeeded()
-
-        let applyFinalState = {
-            self.actionButtonsTrailingConstraint?.constant = searching
-                ? HistoryPanelLayout.actionsHiddenOffset
-                : -HistoryPanelLayout.headerControlInset
-            self.searchFieldTrailingConstraint?.constant = searching
-                ? -HistoryPanelLayout.headerControlInset
-                : HistoryPanelLayout.searchHiddenOffset
-            self.actionButtonsContainer.alphaValue = searching ? 0 : 1
-            self.searchField.alphaValue = searching ? 1 : 0
-            self.layoutSubtreeIfNeeded()
-        }
-
-        guard animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
-            applyFinalState()
-            actionButtonsContainer.isHidden = searching
-            searchField.isHidden = !searching
-            return
-        }
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = HistoryPanelLayout.searchTransitionDuration
-            context.allowsImplicitAnimation = true
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            self.actionButtonsTrailingConstraint?.constant = searching
-                ? HistoryPanelLayout.actionsHiddenOffset
-                : -HistoryPanelLayout.headerControlInset
-            self.searchFieldTrailingConstraint?.constant = searching
-                ? -HistoryPanelLayout.headerControlInset
-                : HistoryPanelLayout.searchHiddenOffset
-            self.actionButtonsContainer.animator().alphaValue = searching ? 0 : 1
-            self.searchField.animator().alphaValue = searching ? 1 : 0
-            self.animator().layoutSubtreeIfNeeded()
-        } completionHandler: { [weak self] in
-            guard let self, self.searchAnimationGeneration == generation else { return }
-            self.actionButtonsContainer.isHidden = searching
-            self.searchField.isHidden = !searching
-        }
-    }
-
-    private func updateFilterAvailability(availableFilters: Set<HistoryPanelFilter>) {
-        for (filter, button) in filterButtons {
-            button.isHidden = !availableFilters.contains(filter)
-        }
-        filterScrollView.contentDidChange()
-        updateFilterSelection()
-    }
-
     private func updateFilterSelection() {
-        for (filter, button) in filterButtons {
-            button.isSelected = filter == selectedFilter
-        }
-        if let selectedButton = filterButtons[selectedFilter], !selectedButton.isHidden {
-            filterScrollView.reveal(selectedButton)
-        }
+        guard let index = availableFilters.firstIndex(of: selectedFilter) else { return }
+        filterScrollView.control.selectedSegment = index
+        filterScrollView.revealSelection()
     }
 
     @objc private func deleteHistoryClicked() {
@@ -2026,7 +1708,7 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     }
 
     private func updateLockButtonPresentation() {
-        lockButton.isSelected = isLocked
+        lockButton.state = isLocked ? .on : .off
         lockButton.updateAccessibilityLabel(isLocked ? L10n.historyPanelUnlock : L10n.historyPanelLock)
         lockButton.updateSymbol(isLocked ? "lock.fill" : "lock")
     }
@@ -2038,9 +1720,8 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
             clearKeyboardNavigation()
             clearActiveHoverTile()
             previewController?.close()
-            filePreviewController?.close()
         }
-        infoButton.isSelected = visible
+        infoButton.state = visible ? .on : .off
         infoButton.updateAccessibilityLabel(
             visible ? L10n.historyPanelShortcutGuideHide : L10n.historyPanelShortcutGuide
         )
@@ -2076,47 +1757,22 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
                 self.isReloading = false
                 self.hasLoadedEntries = true
                 self.allEntries = allEntries
-                self.availableFilters = availableFilters
+                if self.availableFilters != availableFilters {
+                    self.availableFilters = availableFilters
+                    self.filterScrollView.setFilters(availableFilters)
+                }
                 self.applySelectedFilter(resetScrollPosition: false)
             }
         }
     }
 
     private func applySelectedFilter(resetScrollPosition: Bool) {
-        searchApplyWorkItem?.cancel()
-        searchApplyWorkItem = nil
-        searchGeneration += 1
-        let generation = searchGeneration
         let effectiveFilter = availableFilters.contains(selectedFilter) ? selectedFilter : .all
         selectedFilter = effectiveFilter
-        updateFilterAvailability(availableFilters: availableFilters)
-        updateSearchPlaceholder()
+        updateFilterSelection()
         let entries = Self.filteredEntries(from: allEntries, filter: effectiveFilter)
-        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isSearchMode, !query.isEmpty, let scope = effectiveFilter.searchScope else {
-            applyEntries(entries, hasAnyEntries: !allEntries.isEmpty)
-            resetScrollPositionIfNeeded(resetScrollPosition)
-            return
-        }
-
-        let hasAnyEntries = !allEntries.isEmpty
-        entriesQueue.async { [weak self] in
-            let matches = entries.filter {
-                HistorySearchMatcher.matches($0, query: query, scope: scope)
-            }
-            DispatchQueue.main.async {
-                guard let self,
-                      self.isActive,
-                      self.isSearchMode,
-                      self.searchGeneration == generation,
-                      self.selectedFilter == effectiveFilter,
-                      self.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == query else {
-                    return
-                }
-                self.applyEntries(matches, hasAnyEntries: hasAnyEntries)
-                self.resetScrollPositionIfNeeded(resetScrollPosition)
-            }
-        }
+        applyEntries(entries, hasAnyEntries: !allEntries.isEmpty)
+        resetScrollPositionIfNeeded(resetScrollPosition)
     }
 
     private func resetScrollPositionIfNeeded(_ shouldReset: Bool) {
@@ -2138,11 +1794,10 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         collectionLayout.invalidateLayout()
         refreshTileSelectionStates()
         deleteButton.isEnabled = hasAnyEntries
-        deleteButton.alphaValue = deleteButton.isEnabled ? 1 : 0.35
         if !hasAnyEntries {
             setDeleteConfirmation(false, animated: true)
         }
-        updateEmptyLabel()
+        emptyLabel.stringValue = L10n.historyPanelEmpty
         updateContentVisibility()
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -2169,7 +1824,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     }
 
     private func handleSelectionToggle(for tile: HistoryPanelTileView, event: NSEvent) {
-        guard tile.supportsSelection else { return }
         window?.makeKey()
         setDeleteConfirmation(false, animated: true)
         if event.modifierFlags.contains(.shift), let anchor = lastSelectionAnchorID {
@@ -2182,23 +1836,12 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     }
 
     private func handlePrimaryClick(for tile: HistoryPanelTileView, event: NSEvent) {
-        if event.modifierFlags.contains(.command), tile.supportsSelection {
-            handleSelectionToggle(for: tile, event: event)
-            return
-        }
-        if event.modifierFlags.contains(.shift), tile.supportsSelection {
+        if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.shift) {
             handleSelectionToggle(for: tile, event: event)
             return
         }
 
         let tileID = entryID(tile.entry)
-        if case .files = tile.entry.kind {
-            HistoryPanelEntryActions.copyFiles(dragEntries(for: tile)) { [weak self, weak tile] success in
-                tile?.refreshFileAvailability()
-                if success { self?.onRequestDismiss?() }
-            }
-            return
-        }
         if hasSelection, selectedEntryIDs.contains(tileID) {
             if case .image = tile.entry.kind,
                HistoryPanelEntryActions.copyImages(selectedImageEntries()) {
@@ -2219,14 +1862,7 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         guard selectedEntryIDs.contains(tileID) else {
             return [tile.entry]
         }
-        let selected = selectedEntries().filter { entry in
-            switch entry.kind {
-            case .color, .text:
-                return false
-            case .image, .video, .files:
-                return true
-            }
-        }
+        let selected = selectedEntries()
         return selected.isEmpty ? [tile.entry] : selected
     }
 
@@ -2343,9 +1979,8 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     private func setDeleteConfirmation(_ confirming: Bool, animated: Bool) {
         guard isConfirmingDelete != confirming else { return }
         isConfirmingDelete = confirming
-        let width = confirming ? deleteButton.expandedWidth : HistoryPanelDeleteButton.collapsedWidth
-
         deleteButton.setConfirming(confirming)
+        let width = confirming ? deleteButton.expandedWidth : HistoryPanelLayout.headerButtonSize
         guard animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             deleteButtonWidthConstraint?.constant = width
             layoutSubtreeIfNeeded()
@@ -2446,24 +2081,17 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     }
 
     private func updateHistoryPreviewHotkey() {
-        // The Space preview uses a Carbon hotkey, so suspend it only while the
-        // search field owns keyboard input. Mouse movement returns Space to results.
         guard isActive,
               !isShowingShortcutGuide,
-              !isSearchInputActive,
               previewController == nil,
-              !HistoryFileQuickLookWindowController.isPresented,
-              let entry = activeHoverTile?.entry,
-              previewKind(for: entry) != nil else {
+              activeHoverTile != nil else {
             HotkeyManager.shared.unregisterHistoryPreview()
             return
         }
         HotkeyManager.shared.registerHistoryPreview { [weak self] in
             guard let self,
                   self.isActive,
-                  !self.isSearchInputActive,
-                  let hoveredEntry = self.activeHoverTile?.entry,
-                  self.previewKind(for: hoveredEntry) != nil else { return }
+                  let hoveredEntry = self.activeHoverTile?.entry else { return }
             self.presentPreview(startingAt: hoveredEntry)
         }
     }
@@ -2500,20 +2128,11 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
 
             let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let shortcutModifiers = modifiers.intersection([.command, .control, .option, .shift])
+            let firstResponder = event.window?.firstResponder
             if self.isActive,
                event.keyCode == UInt16(kVK_ANSI_Slash),
                shortcutModifiers == .command || shortcutModifiers == [.command, .shift] {
                 self.toggleShortcutGuideClicked()
-                return nil
-            }
-            if self.isActive,
-               event.keyCode == UInt16(kVK_ANSI_K),
-               shortcutModifiers == .command {
-                if self.isSearchMode {
-                    self.endSearchMode(animated: true)
-                } else {
-                    self.beginSearchMode()
-                }
                 return nil
             }
             if self.isShowingShortcutGuide {
@@ -2531,30 +2150,16 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
                     self.cycleFilter(forward: forward)
                     return nil
                 }
-                if shortcutModifiers.isEmpty, !self.isSearchInputActive {
+                if shortcutModifiers.isEmpty {
+                    guard firstResponder !== self.filterScrollView.control else { return event }
                     self.moveEntry(forward: forward)
                     return nil
                 }
             }
-            if self.isSearchMode {
-                if event.keyCode == UInt16(kVK_Escape) {
-                    self.endSearchMode(animated: true)
-                    return nil
-                }
-                if !self.isSearchInputActive,
-                   event.keyCode == UInt16(kVK_Space),
-                   modifiers.isEmpty,
-                   let hoveredEntry = self.activeHoverTile?.entry,
-                   self.previewKind(for: hoveredEntry) != nil {
-                    self.presentPreview(startingAt: hoveredEntry)
-                    return nil
-                }
-                return event
-            }
 
             if event.keyCode == UInt16(kVK_Space), modifiers.isEmpty,
-               let hoveredEntry = self.activeHoverTile?.entry,
-               self.previewKind(for: hoveredEntry) != nil {
+               !(firstResponder is NSControl),
+               let hoveredEntry = self.activeHoverTile?.entry {
                 self.presentPreview(startingAt: hoveredEntry)
                 return nil
             }
@@ -2586,13 +2191,7 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
     }
 
     private func presentPreview(startingAt entry: HistoryEntry) {
-        guard let kind = previewKind(for: entry) else { return }
-        if case .files = entry.kind {
-            presentFilePreview(startingAt: entry)
-            return
-        }
-        filePreviewController?.close()
-        let previewEntries = visibleEntries.filter { previewKind(for: $0) == kind }
+        let previewEntries = visibleEntries.filter { $0.kind == entry.kind }
         guard !previewEntries.isEmpty else { return }
         HotkeyManager.shared.unregisterHistoryPreview()
         previewController?.close()
@@ -2613,50 +2212,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         }
         previewController = controller
         controller.show(relativeTo: window?.screen)
-    }
-
-    private func presentFilePreview(startingAt entry: HistoryEntry) {
-        guard case .files(let files) = entry.kind else { return }
-        // Browse the complete filtered results, including unrendered pages,
-        // independently of the multi-selection used for copy/delete actions.
-        var seenPaths = Set<String>()
-        let references = visibleEntries.flatMap { candidate -> [HistoryFileReferences.Reference] in
-            guard case .files(let files) = candidate.kind else { return [] }
-            return files.references
-        }.filter { seenPaths.insert(URL(fileURLWithPath: $0.path).standardizedFileURL.path).inserted }
-        guard !references.isEmpty else { return }
-        let initialPath = files.references.first.map { URL(fileURLWithPath: $0.path).standardizedFileURL.path }
-        let initialIndex = references.firstIndex {
-            URL(fileURLWithPath: $0.path).standardizedFileURL.path == initialPath
-        } ?? 0
-        HotkeyManager.shared.unregisterHistoryPreview()
-        previewController?.close()
-        filePreviewController?.close()
-        let controller = HistoryFileQuickLookWindowController(references: references, initialIndex: initialIndex)
-        controller.onClose = { [weak self, weak controller] in
-            guard let self, self.filePreviewController === controller else { return }
-            self.filePreviewController = nil
-            self.syncHoverStateWithCurrentMouse()
-        }
-        filePreviewController = controller
-        controller.show(relativeTo: window?.screen)
-    }
-
-    private enum PreviewKind {
-        case image
-        case video
-        case text
-        case files
-    }
-
-    private func previewKind(for entry: HistoryEntry) -> PreviewKind? {
-        switch entry.kind {
-        case .image: return .image
-        case .video: return .video
-        case .text: return .text
-        case .files: return .files
-        case .color: return nil
-        }
     }
 
     private func stopSelectionKeyMonitoring() {
@@ -2721,18 +2276,17 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
         entries.filter { entryMatches($0, filter: filter) }
     }
 
-    private static func availableFilters(for entries: [HistoryEntry]) -> Set<HistoryPanelFilter> {
-        var filters: Set<HistoryPanelFilter> = [.all]
-        for filter in HistoryPanelFilter.allCases where filter != .all {
-            if filter == .favorites {
-                if HistoryFavoritePolicy.shouldShowFilter(for: entries) {
-                    filters.insert(filter)
-                }
-            } else if entries.contains(where: { entryMatches($0, filter: filter) }) {
-                filters.insert(filter)
+    private static func availableFilters(for entries: [HistoryEntry]) -> [HistoryPanelFilter] {
+        HistoryPanelFilter.allCases.filter { filter in
+            switch filter {
+            case .all:
+                return true
+            case .favorites:
+                return HistoryFavoritePolicy.shouldShowFilter(for: entries)
+            case .screenshots, .gif, .mp4:
+                return entries.contains { entryMatches($0, filter: filter) }
             }
         }
-        return filters
     }
 
     private static func entryMatches(_ entry: HistoryEntry, filter: HistoryPanelFilter) -> Bool {
@@ -2749,15 +2303,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
             return entry.fileURL.pathExtension.lowercased() == "gif"
         case .mp4:
             guard case .video = entry.kind else { return false }
-            return true
-        case .colors:
-            guard case .color = entry.kind else { return false }
-            return true
-        case .text:
-            guard case .text = entry.kind else { return false }
-            return true
-        case .files:
-            guard case .files = entry.kind else { return false }
             return true
         }
     }
@@ -2878,10 +2423,6 @@ private final class HistoryPanelContentView: NSView, NSCollectionViewDataSource,
                     }
                 )
                 previewPrefetchRequests[entryID] = request
-            case .text(let text):
-                text.preload()
-            case .color, .files:
-                break
             }
         }
     }
@@ -3317,7 +2858,6 @@ private final class HistoryPanelShortcutGuideView: NSView {
         let space = L10n.historyPanelShortcutKeySpace
         return [
             [
-                Item(shortcut: "⌘ K", description: L10n.historyPanelShortcutSearch),
                 Item(shortcut: "←  →", description: L10n.historyPanelShortcutSwitchItem),
                 Item(shortcut: "⇧ ←  /  ⇧ →", description: L10n.historyPanelShortcutSwitchFilter),
                 Item(shortcut: "Esc", description: L10n.historyPanelShortcutCancel),
@@ -3340,11 +2880,6 @@ private final class HistoryPanelShortcutGuideView: NSView {
             [
                 Item(shortcut: "E", description: L10n.historyPanelShortcutEditImage),
                 Item(shortcut: "P", description: L10n.historyPanelShortcutPinImage),
-                Item(shortcut: "U", description: L10n.historyPanelShortcutUploadImage),
-            ],
-            [
-                Item(shortcut: "T", description: L10n.historyPanelShortcutTranslateText),
-                Item(shortcut: "Q", description: L10n.historyPanelShortcutQRCode),
                 Item(shortcut: "⌘ ?", description: L10n.historyPanelShortcutToggleGuide),
             ],
         ]
@@ -3515,7 +3050,6 @@ private final class HistorySelectionBadgeView: NSView {
 }
 
 private final class HistoryPanelDeleteButton: NSButton {
-    static let collapsedWidth: CGFloat = 28
     private var isConfirming = false
 
     var confirmationTitle = "" {
@@ -3527,20 +3061,25 @@ private final class HistoryPanelDeleteButton: NSButton {
     }
 
     var expandedWidth: CGFloat {
-        let font = font ?? .systemFont(ofSize: NSFont.systemFontSize(for: .small))
-        let textWidth = ceil(confirmationTitle.size(withAttributes: [.font: font]).width)
-        return max(96, textWidth + 48)
+        max(96, ceil(intrinsicContentSize.width))
     }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        controlSize = .small
-        bezelStyle = .accessoryBarAction
+        controlSize = .regular
+        if #available(macOS 26.0, *) {
+            bezelStyle = .glass
+            borderShape = .capsule
+            tintProminence = .secondary
+        } else {
+            bezelStyle = .push
+        }
         image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
+            .withSymbolConfiguration(.init(pointSize: 14, weight: .medium))
         imageScaling = .scaleProportionallyDown
         setButtonType(.momentaryPushIn)
         setConfirming(false)
+        isEnabled = false
     }
 
     required init?(coder: NSCoder) {
@@ -3549,38 +3088,33 @@ private final class HistoryPanelDeleteButton: NSButton {
 
     func setConfirming(_ confirming: Bool) {
         isConfirming = confirming
-        isBordered = confirming
         title = confirming ? confirmationTitle : ""
         imagePosition = confirming ? .imageLeading : .imageOnly
-        contentTintColor = .systemRed
         hasDestructiveAction = confirming
+        bezelColor = confirming ? .systemRed : nil
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 private final class HistoryPanelActionButton: NSButton {
-    private static let buttonSize: CGFloat = 28
-
-    var isSelected = false {
-        didSet {
-            state = isSelected ? .on : .off
-            contentTintColor = isSelected ? .controlAccentColor : .labelColor
-        }
-    }
-
-    init(symbolName: String, accessibilityLabel: String) {
+    init(symbolName: String, accessibilityLabel: String, isToggle: Bool = false) {
         super.init(frame: .zero)
-        isBordered = false
-        bezelStyle = .accessoryBarAction
+        title = ""
+        controlSize = .regular
+        bezelStyle = isToggle ? .accessoryBar : .accessoryBarAction
+        setButtonType(isToggle ? .pushOnPushOff : .momentaryPushIn)
+        showsBorderOnlyWhileMouseInside = !isToggle
+        if #available(macOS 26.0, *) {
+            borderShape = .capsule
+        }
         imagePosition = .imageOnly
         imageScaling = .scaleProportionallyDown
-        contentTintColor = .labelColor
         updateAccessibilityLabel(accessibilityLabel)
         updateSymbol(symbolName)
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: Self.buttonSize),
-            heightAnchor.constraint(equalToConstant: Self.buttonSize),
+            widthAnchor.constraint(equalToConstant: HistoryPanelLayout.headerButtonSize),
+            heightAnchor.constraint(equalToConstant: HistoryPanelLayout.headerButtonSize),
         ])
     }
 
@@ -3595,309 +3129,10 @@ private final class HistoryPanelActionButton: NSButton {
 
     func updateSymbol(_ symbolName: String) {
         image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
+            .withSymbolConfiguration(.init(pointSize: 14, weight: .medium))
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
-private final class HistoryPanelFilterButton: NSButton {
-    let filter: HistoryPanelFilter
-
-    override var title: String {
-        didSet {
-            toolTip = title
-            setAccessibilityLabel(title)
-            invalidateIntrinsicContentSize()
-        }
-    }
-
-    var isSelected = false {
-        didSet {
-            state = isSelected ? .on : .off
-            contentTintColor = isSelected ? .controlAccentColor : .secondaryLabelColor
-        }
-    }
-
-    init(filter: HistoryPanelFilter) {
-        self.filter = filter
-        super.init(frame: .zero)
-        bezelStyle = .accessoryBarAction
-        controlSize = .small
-        setButtonType(.pushOnPushOff)
-        if let symbolName = filter.symbolName {
-            image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
-                .withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
-            imagePosition = .imageOnly
-            imageScaling = .scaleProportionallyDown
-        }
-        contentTintColor = .secondaryLabelColor
-        title = filter.title
-        heightAnchor.constraint(equalToConstant: 28).isActive = true
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: filter.symbolName == nil ? max(48, super.intrinsicContentSize.width) : 36, height: 28)
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
-private final class HistoryPanelSearchField: NSView, NSSearchFieldDelegate {
-    var onTextChanged: ((String) -> Void)?
-    var onClear: (() -> Void)?
-    var onEditingStateChanged: ((Bool) -> Void)?
-
-    private let textField = NSSearchField()
-
-    var text: String {
-        get { textField.stringValue }
-        set { textField.stringValue = newValue }
-    }
-
-    var placeholder = "" {
-        didSet {
-            textField.placeholderString = placeholder
-            textField.setAccessibilityLabel(placeholder)
-        }
-    }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        textField.delegate = self
-        textField.target = self
-        textField.action = #selector(searchSubmitted)
-        textField.sendsWholeSearchString = true
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(textField)
-        NSLayoutConstraint.activate([
-            textField.leadingAnchor.constraint(equalTo: leadingAnchor),
-            textField.trailingAnchor.constraint(equalTo: trailingAnchor),
-            textField.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func focus() {
-        window?.makeFirstResponder(textField)
-    }
-
-    func resignFocus() {
-        guard let window, window.firstResponder === textField.currentEditor() else { return }
-        window.makeFirstResponder(nil)
-    }
-
-    func controlTextDidBeginEditing(_ notification: Notification) {
-        onEditingStateChanged?(true)
-    }
-
-    func controlTextDidChange(_ notification: Notification) {
-        onTextChanged?(text)
-    }
-
-    func controlTextDidEndEditing(_ notification: Notification) {
-        onEditingStateChanged?(false)
-    }
-
-    @objc private func searchSubmitted() {
-        if text.isEmpty {
-            onClear?()
-        }
-    }
-}
-
-private final class HistoryCloudActionBarView: NSView {
-    enum ActionKind {
-        case markdown
-        case plainLink
-
-        var asMarkdown: Bool {
-            switch self {
-            case .markdown: return true
-            case .plainLink: return false
-            }
-        }
-    }
-
-    private static let buttonSize = NSSize(width: 24, height: 22)
-    private static let spacing: CGFloat = 4
-    private let markdownButton = HistoryCloudActionButton(text: "MD", tooltip: L10n.historyPanelCopyMarkdownLink)
-    private let plainLinkButton = HistoryCloudActionButton(symbolName: "link", tooltip: L10n.historyPanelCopyPlainLink)
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
-
-        addSubview(markdownButton)
-
-        addSubview(plainLinkButton)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        let width = Self.buttonSize.width
-            + Self.spacing
-            + Self.buttonSize.width
-        return NSSize(width: width, height: Self.buttonSize.height)
-    }
-
-    override func layout() {
-        super.layout()
-        markdownButton.frame = Self.buttonFrame(for: .markdown, in: bounds)
-        plainLinkButton.frame = Self.buttonFrame(for: .plainLink, in: bounds)
-    }
-
-    func actionKind(at point: NSPoint) -> ActionKind? {
-        guard !isHidden, alphaValue > 0, bounds.contains(point) else { return nil }
-        if Self.buttonFrame(for: .markdown, in: bounds).contains(point) {
-            return .markdown
-        }
-        if Self.buttonFrame(for: .plainLink, in: bounds).contains(point) {
-            return .plainLink
-        }
-        return nil
-    }
-
-    func setPressedActionKind(_ actionKind: ActionKind?) {
-        markdownButton.isPressed = actionKind == .markdown
-        plainLinkButton.isPressed = actionKind == .plainLink
-    }
-
-    private static func buttonFrame(for actionKind: ActionKind, in bounds: NSRect) -> NSRect {
-        let y = bounds.midY - buttonSize.height / 2
-        let x: CGFloat
-        switch actionKind {
-        case .markdown:
-            x = 0
-        case .plainLink:
-            x = buttonSize.width + spacing
-        }
-        return NSRect(x: x, y: y, width: buttonSize.width, height: buttonSize.height)
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        return nil
-    }
-}
-
-private final class HistoryCloudActionButton: NSControl {
-    private let label = HistoryPanelCenteredTextView()
-    private let iconView = NSImageView()
-    private var trackingArea: NSTrackingArea?
-    var isPressed = false {
-        didSet { applyAppearance() }
-    }
-    private var isHovering = false {
-        didSet { applyAppearance() }
-    }
-
-    init(text: String, tooltip: String) {
-        super.init(frame: .zero)
-        commonInit(tooltip: tooltip)
-
-        label.stringValue = text
-        label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
-        label.textColor = .white
-        label.alignment = .center
-        label.horizontalInset = 0
-        label.verticalInset = 0
-        addSubview(label)
-
-        iconView.isHidden = true
-    }
-
-    init(symbolName: String, tooltip: String) {
-        super.init(frame: .zero)
-        commonInit(tooltip: tooltip)
-
-        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-        iconView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: tooltip)?
-            .withSymbolConfiguration(config)
-        iconView.contentTintColor = .white
-        iconView.imageScaling = .scaleProportionallyDown
-        addSubview(iconView)
-
-        label.isHidden = true
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: 24, height: 22)
-    }
-
-    private func commonInit(tooltip: String) {
-        wantsLayer = true
-        layer?.cornerRadius = 7
-        layer?.cornerCurve = .continuous
-        toolTip = tooltip
-        setAccessibilityLabel(tooltip)
-        applyAppearance()
-    }
-
-    override func layout() {
-        super.layout()
-        label.frame = bounds
-        let iconSize: CGFloat = 14
-        iconView.frame = NSRect(
-            x: bounds.midX - iconSize / 2,
-            y: bounds.midY - iconSize / 2,
-            width: iconSize,
-            height: iconSize
-        )
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let trackingArea {
-            removeTrackingArea(trackingArea)
-        }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        trackingArea = area
-        addTrackingArea(area)
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isHovering = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isHovering = false
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    private func applyAppearance() {
-        if isPressed {
-            layer?.backgroundColor = accentGreen.withAlphaComponent(0.92).cgColor
-            label.textColor = .black
-            iconView.contentTintColor = .black
-        } else {
-            layer?.backgroundColor = isHovering
-                ? NSColor.white.withAlphaComponent(0.20).cgColor
-                : NSColor.white.withAlphaComponent(0.10).cgColor
-            label.textColor = .white
-            iconView.contentTintColor = .white
-        }
-    }
 }
 
 private final class HistoryPanelCollectionItem: NSCollectionViewItem {
@@ -3954,7 +3189,6 @@ private final class HistoryPanelCollectionItem: NSCollectionViewItem {
 }
 
 private final class HistoryPanelTileView: NSView, NSDraggingSource {
-    private static let textPreviewCharacterLimit = 600
     private enum PreviewLoadState {
         case idle
         case loading
@@ -3970,11 +3204,8 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
     private let onFavoriteToggle: ((HistoryPanelTileView) -> Void)?
     private let dragEntriesProvider: ((HistoryPanelTileView) -> [HistoryEntry])?
     private let imageView = NSImageView()
-    private let textPreviewLabel = HistoryPanelCenteredTextView()
     private let overlayLabel = HistoryPanelCenteredTextView()
-    private let cloudBadgeView = HistoryCloudBadgeView()
     private let favoriteButton = HistoryFavoriteButton()
-    private let cloudActionBarView = HistoryCloudActionBarView()
     private let badgeView = HistoryMediaBadgeView()
     private let selectionBadgeView = HistorySelectionBadgeView()
     private let metaLabel = HistoryPanelCenteredTextView()
@@ -3982,13 +3213,10 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
     private var previewRequest: HistoryImagePreviewRequest?
     private var mouseDownPoint: NSPoint?
     private var mouseDownHitSelectionBadge = false
-    private var mouseDownCloudActionKind: HistoryCloudActionBarView.ActionKind?
     private var isHovered = false
     private var isSelectionModeActive = false
     private var selectionOrder: Int?
     private var didStartDrag = false
-    private var fileDragGeneration = 0
-    private var lastFilePreviewRefresh = Date.distantPast
     private var didDismissForCurrentDrag = false
     private var previewLoadState: PreviewLoadState = .idle
     private var previewLoadGeneration = 0
@@ -4024,17 +3252,8 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         imageView.layer?.masksToBounds = true
         addSubview(imageView)
 
-        textPreviewLabel.isHidden = true
-        textPreviewLabel.font = NSFont.systemFont(ofSize: presentation == .dialog ? 13 : 12, weight: .medium)
-        textPreviewLabel.textColor = NSColor.labelColor
-        textPreviewLabel.alignment = .natural
-        textPreviewLabel.horizontalInset = 12
-        textPreviewLabel.verticalInset = 9
-        textPreviewLabel.lineBreakMode = .byWordWrapping
-        textPreviewLabel.ignoresHitTesting = true
-        addSubview(textPreviewLabel)
 
-        let overlayHint = Self.overlayHint(for: entry, supportsDrag: supportsDrag)
+        let overlayHint = L10n.historyPanelCopyDragHint.replacingOccurrences(of: " · ", with: "\n")
         overlayLabel.stringValue = overlayHint
         overlayLabel.isHidden = overlayHint.isEmpty
         overlayLabel.font = NSFont.systemFont(ofSize: presentation == .dialog ? 13 : 12, weight: .bold)
@@ -4051,16 +3270,11 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         overlayLabel.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.56).cgColor
         addSubview(overlayLabel)
 
-        cloudBadgeView.isHidden = entry.cloudURL == nil
-        addSubview(cloudBadgeView)
 
         favoriteButton.target = self
         favoriteButton.action = #selector(favoriteButtonClicked)
         addSubview(favoriteButton)
 
-        cloudActionBarView.isHidden = true
-        cloudActionBarView.alphaValue = 0
-        addSubview(cloudActionBarView)
 
         if let badgeKind = HistoryMediaBadgeKind(entry: entry) {
             badgeView.configure(kind: badgeKind)
@@ -4118,9 +3332,6 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         if !favoriteButton.isHidden, favoriteButton.frame.contains(localPoint) {
             return favoriteButton
         }
-        if cloudActionKind(at: localPoint) != nil {
-            return self
-        }
         return super.hitTest(point)
     }
 
@@ -4133,26 +3344,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
             width: bounds.width - padding * 2,
             height: presentation.previewHeight
         )
-        textPreviewLabel.frame = imageView.frame
         overlayLabel.frame = imageView.frame
-        if !cloudBadgeView.isHidden {
-            let cloudSize = cloudBadgeView.intrinsicContentSize
-            cloudBadgeView.frame = NSRect(
-                x: imageView.frame.minX - 5,
-                y: imageView.frame.minY - 5,
-                width: cloudSize.width,
-                height: cloudSize.height
-            )
-        }
-        if entry.cloudURL != nil {
-            let actionSize = cloudActionBarView.intrinsicContentSize
-            cloudActionBarView.frame = NSRect(
-                x: cloudBadgeView.frame.maxX + 4,
-                y: cloudBadgeView.frame.minY,
-                width: actionSize.width,
-                height: actionSize.height
-            )
-        }
         let selectionSize = selectionBadgeView.intrinsicContentSize
         selectionBadgeView.frame = NSRect(
             x: imageView.frame.maxX - selectionSize.width
@@ -4222,21 +3414,8 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         isHovered = hovered
         updateTileAppearance()
         overlayLabel.alphaValue = hovered && !overlayLabel.isHidden ? 1 : 0
-        cloudActionBarView.isHidden = entry.cloudURL == nil || !hovered
-        cloudActionBarView.alphaValue = hovered ? 1 : 0
-        if !hovered {
-            cloudActionBarView.setPressedActionKind(nil)
-        }
         refreshFavoriteState()
         updateSelectionBadgeVisibility()
-        if case .files = entry.kind {
-            refreshFileAvailability()
-        }
-        if hovered, case .files = entry.kind, previewLoadState == .loaded,
-           Date().timeIntervalSince(lastFilePreviewRefresh) > 2 {
-            previewLoadState = .idle
-            loadPreviewIfNeeded()
-        }
     }
 
     func setSelectionState(order: Int?, selectionModeActive: Bool) {
@@ -4260,50 +3439,32 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(fill, for: effectiveAppearance)
         layer?.borderColor = AdaptiveChrome.resolvedCGColor(border, for: effectiveAppearance)
         layer?.borderWidth = selected ? 2 : 1
-        let previewBackground: NSColor
-        switch entry.kind {
-        case .color(let hex):
-            previewBackground = NSColor(hex: hex) ?? .black
-        case .text:
-            previewBackground = .quinarySystemFill
-        case .image, .video, .files:
-            let hasThumbnail = previewLoadState == .loaded && imageView.image?.isTemplate != true
-            previewBackground = hasThumbnail ? .clear : .quinarySystemFill
-        }
+        let previewBackground: NSColor = imageView.contentTintColor == nil ? .clear : .quinarySystemFill
         imageView.layer?.backgroundColor = AdaptiveChrome.resolvedCGColor(previewBackground, for: effectiveAppearance)
     }
 
     private func updateSelectionBadgeVisibility() {
-        selectionBadgeView.isHidden = !supportsSelection || (!isHovered && !isSelectionModeActive && selectionOrder == nil)
+        selectionBadgeView.isHidden = !isHovered && !isSelectionModeActive && selectionOrder == nil
         needsLayout = true
     }
 
     func reconfigure(with entry: HistoryEntry) {
         cancelPendingPreviewLoad()
         previewLoadGeneration += 1
-        fileDragGeneration += 1
-        lastFilePreviewRefresh = .distantPast
         self.entry = entry
         previewLoadState = .idle
 
         imageView.image = nil
         imageView.alphaValue = 1
         imageView.contentTintColor = nil
-        textPreviewLabel.stringValue = ""
-        textPreviewLabel.toolTip = nil
-        textPreviewLabel.isHidden = true
         toolTip = nil
         metaLabel.lineBreakMode = .byTruncatingTail
 
-        let overlayHint = Self.overlayHint(for: entry, supportsDrag: supportsDrag)
+        let overlayHint = L10n.historyPanelCopyDragHint.replacingOccurrences(of: " · ", with: "\n")
         overlayLabel.stringValue = overlayHint
         overlayLabel.isHidden = overlayHint.isEmpty
         overlayLabel.alphaValue = 0
 
-        cloudBadgeView.isHidden = entry.cloudURL == nil
-        cloudActionBarView.isHidden = true
-        cloudActionBarView.alphaValue = 0
-        cloudActionBarView.setPressedActionKind(nil)
 
         if let badgeKind = HistoryMediaBadgeKind(entry: entry) {
             badgeView.configure(kind: badgeKind)
@@ -4322,7 +3483,6 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
 
         mouseDownPoint = nil
         mouseDownHitSelectionBadge = false
-        mouseDownCloudActionKind = nil
         didStartDrag = false
         didDismissForCurrentDrag = false
 
@@ -4336,12 +3496,6 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         case .video:
             configureVideoPlaceholder()
             previewLoadState = .idle
-        case .color(let hex):
-            configureColorPreview(hex: hex)
-        case .text:
-                metaLabel.stringValue = Self.metadata(label: L10n.historyPanelFilterText, date: entry.createdAt)
-        case .files(let files):
-            configureFilePlaceholder(files)
         }
         needsLayout = true
     }
@@ -4386,25 +3540,12 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
             ) else { return false }
             configureVideoPreview(preview)
             return true
-        case .text(let text):
-            guard let loadedValue = text.loadedValue else { return false }
-            configureTextPreview(loadedValue)
-            return true
-        case .color:
-            return true
-        case .files:
-            // Revalidate on each visible lifecycle; a path-only cache would keep
-            // showing stale availability and thumbnails after edits or deletion.
-            return false
         }
     }
 
     override func mouseDown(with event: NSEvent) {
-        fileDragGeneration += 1
         mouseDownPoint = convert(event.locationInWindow, from: nil)
         mouseDownHitSelectionBadge = selectionBadgeHitTest(mouseDownPoint ?? .zero)
-        mouseDownCloudActionKind = mouseDownPoint.flatMap { cloudActionKind(at: $0) }
-        cloudActionBarView.setPressedActionKind(mouseDownCloudActionKind)
         didStartDrag = false
         didDismissForCurrentDrag = false
     }
@@ -4412,35 +3553,13 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
     override func mouseDragged(with event: NSEvent) {
         guard !didStartDrag, let mouseDownPoint else { return }
         guard !mouseDownHitSelectionBadge else { return }
-        guard mouseDownCloudActionKind == nil else { return }
         let point = convert(event.locationInWindow, from: nil)
         let dx = point.x - mouseDownPoint.x
         let dy = point.y - mouseDownPoint.y
         guard hypot(dx, dy) > 4 else { return }
         didStartDrag = true
-        let draggedEntries = dragEntriesProvider?(self) ?? [entry]
-        let draggableEntries = draggedEntries.filter { Self.supportsDrag($0) }
+        let draggableEntries = dragEntriesProvider?(self) ?? [entry]
         guard !draggableEntries.isEmpty else { return }
-
-        if draggableEntries.contains(where: { if case .files = $0.kind { return true }; return false }) {
-            let generation = previewLoadGeneration
-            let dragGeneration = fileDragGeneration
-            HistoryFileReferences.resolveTransfer(draggableEntries) { [weak self] urls in
-                guard let self, self.previewLoadGeneration == generation,
-                      self.fileDragGeneration == dragGeneration,
-                      self.window?.isVisible == true, self.didStartDrag else { return }
-                self.refreshFileAvailability()
-                guard let urls else {
-                    ToastWindow.show(message: L10n.historyPanelSourceUnavailableHint)
-                    return
-                }
-                // Source checks are asynchronous. A released mouse cancels the
-                // pending gesture instead of unexpectedly starting a later drag.
-                guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
-                self.beginFileDrag(urls: urls, event: event)
-            }
-            return
-        }
 
         let draggingImage = imageView.image
             ?? NSImage(systemSymbolName: "photo", accessibilityDescription: nil)
@@ -4453,20 +3572,6 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
             let item = NSDraggingItem(pasteboardWriter: entry.fileURL as NSURL)
             let offset = CGFloat(min(index, 2)) * 4
             item.setDraggingFrame(dragFrame.offsetBy(dx: offset, dy: offset), contents: dragImage)
-            return item
-        }
-        beginDraggingSession(with: items, event: event, source: self)
-    }
-
-    private func beginFileDrag(urls: [URL], event: NSEvent) {
-        let baseImage = imageView.image ?? NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
-            ?? NSImage(size: imageView.bounds.size)
-        let dragImage = urls.count > 1 ? Self.multiDragImage(base: baseImage, count: urls.count) : baseImage
-        let frame = draggingFrame(for: dragImage)
-        let items = urls.enumerated().map { index, url in
-            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
-            let offset = CGFloat(min(index, 2)) * 4
-            item.setDraggingFrame(frame.offsetBy(dx: offset, dy: offset), contents: dragImage)
             return item
         }
         beginDraggingSession(with: items, event: event, source: self)
@@ -4550,47 +3655,14 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         return image
     }
 
-    var supportsSelection: Bool {
-        return true
-    }
-
-    private var supportsDrag: Bool {
-        Self.supportsDrag(entry)
-    }
-
-    private static func supportsDrag(_ entry: HistoryEntry) -> Bool {
-        switch entry.kind {
-        case .color, .text:
-            return false
-        case .image, .video, .files:
-            return true
-        }
-    }
-
-    private static func overlayHint(for entry: HistoryEntry, supportsDrag: Bool) -> String {
-        if case .files(let files) = entry.kind, files.lastResolution?.isAvailable == false {
-            return L10n.historyPanelSourceUnavailableHint
-        }
-        guard supportsDrag else { return L10n.historyPanelCopyHint }
-        return L10n.historyPanelCopyDragHint.replacingOccurrences(of: " · ", with: "\n")
-    }
-
     override func mouseUp(with event: NSEvent) {
         defer {
             didStartDrag = false
             mouseDownHitSelectionBadge = false
-            mouseDownCloudActionKind = nil
-            cloudActionBarView.setPressedActionKind(nil)
             mouseDownPoint = nil
         }
         guard !didStartDrag else { return }
         let point = convert(event.locationInWindow, from: nil)
-        if let actionKind = mouseDownCloudActionKind {
-            if cloudActionKind(at: point) == actionKind {
-                performCloudAction(actionKind)
-            }
-            return
-        }
         if mouseDownHitSelectionBadge, selectionBadgeHitTest(point) {
             onSelectionToggle?(self, event)
             return
@@ -4603,20 +3675,8 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
     }
 
     private func selectionBadgeHitTest(_ point: NSPoint) -> Bool {
-        guard supportsSelection, !selectionBadgeView.isHidden else { return false }
+        guard !selectionBadgeView.isHidden else { return false }
         return selectionBadgeView.frame.insetBy(dx: -7, dy: -7).contains(point)
-    }
-
-    private func cloudActionKind(at point: NSPoint) -> HistoryCloudActionBarView.ActionKind? {
-        guard entry.cloudURL != nil, !cloudActionBarView.isHidden else { return nil }
-        let actionPoint = convert(point, to: cloudActionBarView)
-        return cloudActionBarView.actionKind(at: actionPoint)
-    }
-
-    private func performCloudAction(_ actionKind: HistoryCloudActionBarView.ActionKind) {
-        if HistoryPanelEntryActions.copyCloudURL(for: entry, asMarkdown: actionKind.asMarkdown) {
-            onRequestDismiss?()
-        }
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
@@ -4638,60 +3698,7 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
             loadPreview(generation: generation)
         case .video:
             loadVideoPreview(generation: generation)
-        case .color(let hex):
-            configureColorPreview(hex: hex)
-        case .text(let text):
-            text.load { [weak self] value in
-                guard let self,
-                      self.previewLoadGeneration == generation,
-                      self.previewLoadState == .loading else { return }
-                self.previewLoadState = .loaded
-                self.configureTextPreview(value)
-            }
-        case .files(let files):
-            let url = entry.fileURL
-            lastFilePreviewRefresh = Date()
-            previewRequest = HistoryFilePreviewLoader.shared.load(files: files, pixelSize: presentation.previewPixelSize) { [weak self] preview in
-                guard let self, self.previewLoadGeneration == generation,
-                      self.previewLoadState == .loading, self.entry.fileURL == url else { return }
-                self.previewRequest = nil
-                self.previewLoadState = .loaded
-                if let image = preview.image {
-                    self.imageView.image = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
-                    self.imageView.contentTintColor = nil
-                } else {
-                    // A changed file whose provider fails must not retain the
-                    // old document's successful thumbnail.
-                    self.configureFilePlaceholder(files)
-                }
-                self.refreshFileAvailability()
-            }
         }
-    }
-
-    private func configureFilePlaceholder(_ files: HistoryFileReferences) {
-        let type = files.references.first?.typeIdentifier.flatMap { UTType($0) }
-        if let type {
-            imageView.image = NSWorkspace.shared.icon(for: type)
-        } else {
-            imageView.image = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
-            imageView.contentTintColor = .secondaryLabelColor
-        }
-        updateTileAppearance()
-        metaLabel.lineBreakMode = .byTruncatingMiddle
-        metaLabel.stringValue = files.displayName
-        toolTip = ([files.typeLabel] + files.references.prefix(20).map { $0.path }).joined(separator: "\n")
-        refreshFileAvailability()
-    }
-
-    func refreshFileAvailability() {
-        guard case .files(let files) = entry.kind else { return }
-        let unavailable = files.lastResolution?.isAvailable == false
-        imageView.alphaValue = unavailable ? 0.3 : 1
-        textPreviewLabel.isHidden = !unavailable || isHovered
-        textPreviewLabel.stringValue = L10n.historyPanelSourceUnavailable
-        overlayLabel.stringValue = Self.overlayHint(for: entry, supportsDrag: true)
-        metaLabel.stringValue = files.displayName
     }
 
     private func loadPreview(generation: Int) {
@@ -4778,25 +3785,6 @@ private final class HistoryPanelTileView: NSView, NSDraggingSource {
         imageView.contentTintColor = .secondaryLabelColor
         updateTileAppearance()
         metaLabel.stringValue = Self.metadata(label: L10n.historyPanelFilterMP4, date: entry.createdAt)
-    }
-
-    private func configureColorPreview(hex: String) {
-        imageView.image = nil
-        imageView.layer?.backgroundColor = (NSColor(hex: hex) ?? .black).cgColor
-        metaLabel.stringValue = Self.metadata(label: hex.uppercased(), date: entry.createdAt)
-        previewRequest = nil
-        previewLoadState = .loaded
-    }
-
-    private func configureTextPreview(_ text: String) {
-        let previewText = String(text.prefix(Self.textPreviewCharacterLimit))
-        imageView.image = nil
-        textPreviewLabel.stringValue = previewText
-        textPreviewLabel.toolTip = previewText
-        textPreviewLabel.isHidden = false
-        metaLabel.stringValue = Self.metadata(label: L10n.historyPanelFilterText, date: entry.createdAt)
-        previewRequest = nil
-        previewLoadState = .loaded
     }
 
     private static func metadata(label: String, date: Date) -> String {
@@ -4976,33 +3964,21 @@ private final class HistoryPreviewTooltipController {
 }
 
 private final class HistoryPreviewWindowController: NSWindowController, NSWindowDelegate {
-    private enum ContentKind {
-        case image
-        case video
-        case text
-    }
-
     private let entries: [HistoryEntry]
     private let onEdit: (HistoryEntry) -> Void
-    private let contentKind: ContentKind
+    private let contentKind: HistoryEntryKind
     private let imageView = NSImageView()
     private let videoView = AVPlayerView()
-    private let textScrollView = NSScrollView()
     private let textView = NSTextView()
     private let titlebarFilenameContainer = NSView()
     private let titlebarFilenameLabel = NSTextField(labelWithString: "")
     private let titlebarPositionLabel = NSTextField(labelWithString: "")
     private let titlebarActionStack = NSStackView()
     private let tooltipController = HistoryPreviewTooltipController()
-    private var editButton: HistoryPreviewActionButton?
     private var ocrButton: HistoryPreviewActionButton?
     private var ocrPreviewView: OCRPreviewView?
     private var ocrTask: Task<Void, Never>?
-    private var isEditingText = false
-    private var isTextLoaded = false
-    private var uploadButton: NSButton?
     private weak var hoveredActionButton: HistoryPreviewActionButton?
-    private var qrCodeButton: HistoryPreviewActionButton?
     private var actionButtons: [HistoryPreviewActionButton] = []
     private var actionHoverTimer: Timer?
     private var previewKeyMonitor: Any?
@@ -5016,14 +3992,7 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
     init(entries: [HistoryEntry], initialEntry: HistoryEntry, onEdit: @escaping (HistoryEntry) -> Void) {
         self.entries = entries
         self.onEdit = onEdit
-        switch initialEntry.kind {
-        case .video:
-            contentKind = .video
-        case .text:
-            contentKind = .text
-        case .image, .color, .files:
-            contentKind = .image
-        }
+        contentKind = initialEntry.kind
         currentIndex = entries.firstIndex(where: {
             $0.fileURL.standardizedFileURL == initialEntry.fileURL.standardizedFileURL
         }) ?? 0
@@ -5065,8 +4034,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
             window.makeFirstResponder(imageView)
         case .video:
             window.makeFirstResponder(videoView)
-        case .text:
-            window.makeFirstResponder(textView)
         }
         startPreviewKeyMonitoring()
         startActionHoverTracking()
@@ -5074,7 +4041,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
     }
 
     override func close() {
-        guard saveTextBeforeClosing() else { return }
         resetTextRecognition()
         windowSizingTask?.cancel()
         windowSizingTask = nil
@@ -5084,16 +4050,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         tooltipController.close()
         (window as? HistoryPreviewPanel)?.onKeyDown = nil
         super.close()
-    }
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        saveTextBeforeClosing()
-    }
-
-    private func saveTextBeforeClosing() -> Bool {
-        guard isEditingText else { return true }
-        guard window?.attachedSheet == nil else { return false }
-        return saveCurrentText()
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -5127,40 +4083,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         videoView.isHidden = true
         content.addSubview(videoView)
 
-        textScrollView.drawsBackground = false
-        textScrollView.hasVerticalScroller = true
-        textScrollView.hasHorizontalScroller = false
-        textScrollView.autohidesScrollers = true
-        textScrollView.borderType = .noBorder
-        textScrollView.frame = content.bounds
-        textScrollView.autoresizingMask = [.width, .height]
-        textScrollView.isHidden = true
-
-        textView.isEditable = false
-        textView.allowsUndo = true
-        textView.isSelectable = true
-        textView.isRichText = false
-        textView.drawsBackground = false
-        textView.font = NSFont.systemFont(ofSize: 16)
-        textView.textColor = .labelColor
-        textView.textContainerInset = NSSize(width: 24, height: 20)
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
-        textView.autoresizingMask = [.width]
-        textView.minSize = NSSize(width: 0, height: 0)
-        textView.maxSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.containerSize = NSSize(
-            width: 0,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        textView.frame = textScrollView.contentView.bounds
-        textScrollView.documentView = textView
-        content.addSubview(textScrollView)
-
         titlebarFilenameLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         titlebarFilenameLabel.textColor = NSColor.labelColor
         titlebarFilenameLabel.lineBreakMode = .byTruncatingTail
@@ -5191,22 +4113,14 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         switch contentKind {
         case .image:
             actions = [
-                ("pencil", L10n.imageMergeContinueEditing, "E", #selector(editCurrent)),
+                ("pencil", L10n.historyPanelShortcutEditImage, "E", #selector(editCurrent)),
                 (ToolbarItemID.ocr.symbolName, L10n.tipOCR, "O", #selector(recognizeCurrent)),
                 ("doc.on.doc", L10n.tipConfirm, "C", #selector(copyCurrent)),
                 ("pin", L10n.tipPin, "P", #selector(pinCurrent)),
-                ("icloud.and.arrow.up", L10n.tipUpload, "U", #selector(uploadCurrent)),
             ]
         case .video:
             actions = [
                 ("doc.on.doc", L10n.tipConfirm, "C", #selector(copyCurrent)),
-            ]
-        case .text:
-            actions = [
-                ("pencil", L10n.imageMergeContinueEditing, "E", #selector(editCurrent)),
-                ("doc.on.doc", L10n.historyPreviewCopyText, "C", #selector(copyCurrent)),
-                ("character.bubble", L10n.historyPreviewTranslateText, "T", #selector(translateCurrent)),
-                ("qrcode", L10n.historyPreviewConvertToQRCode, "Q", #selector(showQRCodeCurrent)),
             ]
         }
         for action in actions {
@@ -5228,15 +4142,9 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
             button.heightAnchor.constraint(equalToConstant: 24).isActive = true
             stack.addArrangedSubview(button)
             actionButtons.append(button)
-            if action.3 == #selector(editCurrent) {
-                editButton = button
-            } else if action.3 == #selector(recognizeCurrent) {
+            if action.3 == #selector(recognizeCurrent) {
                 ocrButton = button
                 button.isEnabled = false
-            } else if action.3 == #selector(uploadCurrent) {
-                uploadButton = button
-            } else if action.3 == #selector(showQRCodeCurrent) {
-                qrCodeButton = button
             }
         }
         updateTitlebarActionStackSize()
@@ -5261,18 +4169,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
                 break
             }
         }
-        if isEditingText {
-            if blockingModifiers == .command,
-               event.charactersIgnoringModifiers?.lowercased() == "s" {
-                saveCurrentText()
-                return true
-            }
-            if blockingModifiers.isEmpty, Int(event.keyCode) == kVK_Escape {
-                window?.performClose(nil)
-                return true
-            }
-            return false
-        }
         guard blockingModifiers.isEmpty else { return false }
         switch Int(event.keyCode) {
         case kVK_LeftArrow:
@@ -5282,7 +4178,7 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         case kVK_Escape, kVK_Space:
             close()
         case kVK_ANSI_E:
-            guard contentKind == .image || contentKind == .text else { return false }
+            guard contentKind == .image else { return false }
             editCurrent()
         case kVK_ANSI_P:
             guard contentKind == .image else { return false }
@@ -5292,15 +4188,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
             recognizeCurrent()
         case kVK_ANSI_C:
             copyCurrent()
-        case kVK_ANSI_U:
-            guard contentKind == .image else { return false }
-            uploadCurrent()
-        case kVK_ANSI_T:
-            guard contentKind == .text else { return false }
-            translateCurrent()
-        case kVK_ANSI_Q:
-            guard contentKind == .text else { return false }
-            showQRCodeCurrent()
         default:
             return false
         }
@@ -5308,7 +4195,7 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
     }
 
     private func move(by offset: Int) {
-        guard !isEditingText, entries.count > 1 else { return }
+        guard entries.count > 1 else { return }
         currentIndex = (currentIndex + offset + entries.count) % entries.count
         updateWindowFrame(for: currentEntry, on: placementScreen, animated: true)
         loadCurrentContent()
@@ -5324,15 +4211,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
             loadCurrentImage(generation: generation)
         case .video:
             loadCurrentVideo()
-        case .text(let text):
-            isTextLoaded = false
-            editButton?.isEnabled = false
-            text.load { [weak self] value in
-                guard let self, self.loadGeneration == generation else { return }
-                self.loadCurrentText(value)
-            }
-        case .color, .files:
-            return
         }
         updateTitlebarActionStackSize()
         updateTitlebarFilenameLayout()
@@ -5342,14 +4220,12 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         let url = currentEntry.fileURL
         stopVideoPlayback()
         videoView.isHidden = true
-        textScrollView.isHidden = true
         imageView.isHidden = false
         imageView.image = nil
         ocrButton?.isEnabled = false
         window?.title = url.lastPathComponent
         titlebarFilenameLabel.stringValue = url.lastPathComponent
         titlebarFilenameLabel.toolTip = url.lastPathComponent
-        uploadButton?.isHidden = currentEntry.cloudURL != nil
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let image = NSImage(contentsOf: url)
             DispatchQueue.main.async {
@@ -5366,7 +4242,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         stopVideoPlayback()
         imageView.image = nil
         imageView.isHidden = true
-        textScrollView.isHidden = true
         videoView.isHidden = false
         window?.title = url.lastPathComponent
         titlebarFilenameLabel.stringValue = url.lastPathComponent
@@ -5384,33 +4259,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         videoPlayer = nil
     }
 
-    private func loadCurrentText(_ text: String) {
-        isTextLoaded = true
-        editButton?.isEnabled = true
-        textView.undoManager?.removeAllActions()
-        stopVideoPlayback()
-        videoView.isHidden = true
-        imageView.image = nil
-        imageView.isHidden = true
-        textScrollView.isHidden = false
-        textView.string = text
-        textView.setSelectedRange(NSRange(location: 0, length: 0))
-        textView.frame.size.width = textScrollView.contentSize.width
-        textScrollView.contentView.scroll(to: .zero)
-        textScrollView.reflectScrolledClipView(textScrollView.contentView)
-        window?.title = L10n.historyPanelFilterText
-        titlebarFilenameLabel.stringValue = L10n.historyPanelFilterText
-        titlebarFilenameLabel.toolTip = L10n.historyPanelFilterText
-        let canGenerateQRCode = TextQRCodeWindowController.canGenerateQRCode(for: text)
-        qrCodeButton?.isEnabled = canGenerateQRCode
-        qrCodeButton?.hoverTip = canGenerateQRCode
-            ? Self.shortcutTooltip(L10n.historyPreviewConvertToQRCode, key: "Q")
-            : L10n.historyPreviewQRCodeTooLong
-        if let qrCodeButton, hoveredActionButton === qrCodeButton {
-            tooltipController.show(qrCodeButton.hoverTip, relativeTo: qrCodeButton)
-        }
-    }
-
     private func updateWindowFrame(
         for entry: HistoryEntry,
         on screen: NSScreen?,
@@ -5420,20 +4268,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         windowSizingTask = nil
         guard let window,
               let targetScreen = screen ?? window.screen ?? NSScreen.main ?? NSScreen.screens.first else { return }
-        let visibleFrame = targetScreen.visibleFrame
-        if case .text = entry.kind {
-            let safeWidth = max(360, visibleFrame.width - 128)
-            let safeHeight = max(280, visibleFrame.height - 96)
-            let contentSize = NSSize(width: min(720, safeWidth), height: min(520, safeHeight))
-            let frameSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: contentSize)).size
-            let origin = NSPoint(
-                x: visibleFrame.midX - frameSize.width / 2,
-                y: visibleFrame.midY - frameSize.height / 2
-            )
-            window.setFrame(NSRect(origin: origin, size: frameSize), display: true, animate: animated)
-            return
-        }
-
         if case .video = entry.kind {
             let url = entry.fileURL
             let expectedIndex = currentIndex
@@ -5562,11 +4396,6 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
     func windowDidResize(_ notification: Notification) {
         tooltipController.hide()
         hoveredActionButton = nil
-        if contentKind == .text {
-            textView.frame.size.width = textScrollView.contentSize.width
-            textScrollView.contentView.scroll(to: NSPoint(x: 0, y: textScrollView.contentView.bounds.origin.y))
-            textScrollView.reflectScrolledClipView(textScrollView.contentView)
-        }
         updateTitlebarFilenameLayout()
     }
 
@@ -5604,58 +4433,7 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         )
     }
 
-    private func updateTextEditingControls() {
-        textView.isEditable = isEditingText
-        window?.isMovableByWindowBackground = !isEditingText
-        let title = isEditingText ? L10n.tipSave : L10n.imageMergeContinueEditing
-        editButton?.image = NSImage(
-            systemSymbolName: isEditingText ? "checkmark" : "pencil",
-            accessibilityDescription: title
-        )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .medium))
-        editButton?.contentTintColor = isEditingText ? .systemGreen : .secondaryLabelColor
-        editButton?.setAccessibilityLabel(title)
-        editButton?.hoverTip = Self.shortcutTooltip(title, key: isEditingText ? "⌘S" : "E")
-        for button in actionButtons where button !== editButton {
-            button.isEnabled = !isEditingText
-        }
-        tooltipController.hide()
-        hoveredActionButton = nil
-    }
-
-    @discardableResult
-    private func saveCurrentText() -> Bool {
-        guard isEditingText, case .text(let content) = currentEntry.kind else { return false }
-        do {
-            try content.save(textView.string)
-            isEditingText = false
-            updateTextEditingControls()
-            loadCurrentText(textView.string)
-            NotificationCenter.default.post(name: .historyDidUpdate, object: nil)
-            return true
-        } catch {
-            let alert = NSAlert()
-            alert.messageText = L10n.historyPreviewTextSaveFailed
-            alert.addButton(withTitle: L10n.tipCancel)
-            if let window { alert.beginSheetModal(for: window) }
-            return false
-        }
-    }
-
     @objc private func editCurrent() {
-        if contentKind == .text {
-            guard isTextLoaded else { return }
-            if isEditingText {
-                saveCurrentText()
-            } else {
-                isEditingText = true
-                updateTextEditingControls()
-                window?.makeFirstResponder(textView)
-                let endRange = NSRange(location: (textView.string as NSString).length, length: 0)
-                textView.setSelectedRange(endRange)
-                textView.scrollRangeToVisible(endRange)
-            }
-            return
-        }
         let entry = currentEntry
         close()
         onEdit(entry)
@@ -5780,57 +4558,9 @@ private final class HistoryPreviewWindowController: NSWindowController, NSWindow
         close()
     }
 
-    @objc private func uploadCurrent() {
-        guard currentEntry.cloudURL == nil else { return }
-        guard let image = NSImage(contentsOf: currentEntry.fileURL) else { return }
-        let screen = window?.screen
-        close()
-        UploadManager.shared.upload(image: image, on: screen)
-    }
-
-    @objc private func translateCurrent() {
-        guard case .text(let text) = currentEntry.kind else { return }
-        let screen = window?.screen ?? placementScreen ?? NSScreen.main ?? NSScreen.screens.first
-        guard let screen else { return }
-        close()
-        OCRTranslatePanel.presentTextTranslation(text: text.value, screen: screen)
-    }
-
-    @objc private func showQRCodeCurrent() {
-        guard case .text(let text) = currentEntry.kind,
-              TextQRCodeWindowController.canGenerateQRCode(for: text.value) else { return }
-        let screen = window?.screen ?? placementScreen ?? NSScreen.main ?? NSScreen.screens.first
-        guard let screen else { return }
-        close()
-        TextQRCodeWindowController.present(text: text.value, screen: screen)
-    }
 }
 
 private enum HistoryPanelEntryActions {
-    static func copyFiles(_ entries: [HistoryEntry], completion: @escaping (Bool) -> Void) {
-        let changeCount = NSPasteboard.general.changeCount
-        HistoryFileReferences.resolveTransfer(entries) { urls in
-            // A later user copy always wins over an outstanding source check.
-            guard NSPasteboard.general.changeCount == changeCount else {
-                completion(false)
-                return
-            }
-            guard let urls else {
-                ToastWindow.show(message: L10n.historyPanelSourceUnavailableHint)
-                completion(false)
-                return
-            }
-            let success = ClipboardManager.copyHistoryFilesToClipboard(urls)
-            if success {
-                if Defaults.showCopyToast {
-                    ToastWindow.show(message: L10n.copiedToClipboard)
-                }
-                entries.forEach { HistoryManager.shared.promoteCopiedEntryIfNeeded($0) }
-            }
-            completion(success)
-        }
-    }
-
     static func copy(_ entry: HistoryEntry) -> Bool {
         switch entry.kind {
         case .image:
@@ -5841,41 +4571,12 @@ private enum HistoryPanelEntryActions {
             }
             return recordSuccessfulCopy(of: entry)
         case .video:
-            guard ClipboardManager.copyHistoryFilesToClipboard([entry.fileURL]) else { return false }
+            guard ClipboardManager.copyFileURLsToClipboard([entry.fileURL]) else { return false }
             if Defaults.showCopyToast {
                 ToastWindow.show(message: L10n.copiedToClipboard)
             }
             return recordSuccessfulCopy(of: entry)
-        case .color(let hex):
-            ClipboardManager.copyColorToClipboard(hex: hex)
-            ToastWindow.show(message: L10n.colorCopied(hex.uppercased()))
-            return recordSuccessfulCopy(of: entry)
-        case .text(let text):
-            ClipboardManager.copyHistoryTextToClipboard(text.value)
-            if Defaults.showCopyToast {
-                ToastWindow.show(message: L10n.copiedToClipboard)
-            }
-            return recordSuccessfulCopy(of: entry)
-        case .files:
-            copyFiles([entry]) { _ in }
-            return false
         }
-    }
-
-    static func copyCloudURL(for entry: HistoryEntry, asMarkdown: Bool) -> Bool {
-        guard let cloudURL = entry.cloudURL else { return false }
-        return copyCloudURL(cloudURL, asMarkdown: asMarkdown)
-    }
-
-    private static func copyCloudURL(_ cloudURL: URL, asMarkdown: Bool) -> Bool {
-        let copyText = asMarkdown
-            ? "![](\(cloudURL.absoluteString))"
-            : cloudURL.absoluteString
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(copyText, forType: .string)
-        ToastWindow.show(message: asMarkdown ? L10n.uploadCopiedMarkdown : L10n.uploadCopied)
-        return true
     }
 
     static func copyImages(_ entries: [HistoryEntry]) -> Bool {
@@ -5897,18 +4598,6 @@ private enum HistoryPanelEntryActions {
     private static func recordSuccessfulCopy(of entry: HistoryEntry) -> Bool {
         HistoryManager.shared.promoteCopiedEntryIfNeeded(entry)
         return true
-    }
-}
-
-private extension NSColor {
-    convenience init?(hex: String) {
-        var trimmed = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if trimmed.hasPrefix("#") { trimmed.removeFirst() }
-        guard trimmed.count == 6, let value = UInt32(trimmed, radix: 16) else { return nil }
-        let r = CGFloat((value >> 16) & 0xFF) / 255.0
-        let g = CGFloat((value >> 8) & 0xFF) / 255.0
-        let b = CGFloat(value & 0xFF) / 255.0
-        self.init(srgbRed: r, green: g, blue: b, alpha: 1)
     }
 }
 

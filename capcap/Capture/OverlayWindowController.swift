@@ -16,7 +16,6 @@ class OverlayWindowController {
         case finder
         case clipboard
         case pin
-        case merge
         case fullScreen
     }
 
@@ -68,10 +67,8 @@ class OverlayWindowController {
     private var preparedOverlayPanels: [CGDirectDisplayID: OverlayPanel] = [:]
     private var chipWindow: CursorChipWindow?
     private var magnifierLensPanel: MagnifierLensPanelWindow?
-    private var magnifierLensPanelFormat: MagnifierLensPanelWindow.Format = .hex
     private var mouseMovedLocalMonitor: Any?
     private var mouseMovedGlobalMonitor: Any?
-    private var magnifierLensPanelKeyDownGlobalMonitor: Any?
     private var magnifierLensPanelActive: Bool { magnifierLensPanel != nil }
     private var screenFramesByDisplayID: [CGDirectDisplayID: NSRect] = [:]
     private var escLocalMonitor: Any?
@@ -93,7 +90,6 @@ class OverlayWindowController {
     private let snapshotProvider: ScreenSnapshotProviding
     private let eventTrackingStateProvider: () -> Bool
     private let eventTrackingDismissal: () -> Void
-    private let colorSamplerActiveProvider: () -> Bool
     private let modalWindowProvider: () -> NSWindow?
     private let modalWindowDismissal: (NSWindow) -> Void
     private let triggerContext: CaptureTriggerContext?
@@ -264,9 +260,6 @@ class OverlayWindowController {
         eventTrackingDismissal: @escaping () -> Void = {
             OverlayWindowController.dismissActiveEventTrackingSurface()
         },
-        colorSamplerActiveProvider: @escaping () -> Bool = {
-            ColorPickerRunner.shared.isActive
-        },
         modalWindowProvider: @escaping () -> NSWindow? = {
             OverlayWindowController.currentApplicationModalWindow()
         },
@@ -292,7 +285,6 @@ class OverlayWindowController {
         self.windowCaptureTimeout = windowCaptureTimeout
         self.eventTrackingStateProvider = eventTrackingStateProvider
         self.eventTrackingDismissal = eventTrackingDismissal
-        self.colorSamplerActiveProvider = colorSamplerActiveProvider
         self.modalWindowProvider = modalWindowProvider
         self.modalWindowDismissal = modalWindowDismissal
         self.onFirstFramePresented = onFirstFramePresented
@@ -330,7 +322,6 @@ class OverlayWindowController {
         self.eventTrackingDismissal = {
             OverlayWindowController.dismissActiveEventTrackingSurface()
         }
-        self.colorSamplerActiveProvider = { ColorPickerRunner.shared.isActive }
         self.modalWindowProvider = {
             OverlayWindowController.currentApplicationModalWindow()
         }
@@ -371,7 +362,6 @@ class OverlayWindowController {
         self.eventTrackingDismissal = {
             OverlayWindowController.dismissActiveEventTrackingSurface()
         }
-        self.colorSamplerActiveProvider = { ColorPickerRunner.shared.isActive }
         self.modalWindowProvider = {
             OverlayWindowController.currentApplicationModalWindow()
         }
@@ -399,10 +389,6 @@ class OverlayWindowController {
 
     var isMagnifierLensPanelPresented: Bool {
         magnifierLensPanelActive
-    }
-
-    var currentMagnifierLensPanelFormat: MagnifierLensPanelWindow.Format {
-        magnifierLensPanelFormat
     }
 
     var isSelectionInteractive: Bool {
@@ -778,12 +764,6 @@ class OverlayWindowController {
             if self?.editController?.isTextEditing == true {
                 return event
             }
-            if self?.toggleMagnifierLensPanelFormatFromKeyboard(for: event) == true {
-                return nil
-            }
-            if self?.handleMagnifierLensPanelCopyShortcut(for: event, allowsPlainC: true) == true {
-                return nil
-            }
             if self?.editController?.confirmCropFromKeyboard(for: event) == true {
                 return nil
             }
@@ -806,9 +786,6 @@ class OverlayWindowController {
                 return nil
             }
             if event.keyCode == 53 { // Escape
-                if self?.colorSamplerActiveProvider() == true {
-                    return event
-                }
                 self?.cancel()
                 return nil
             }
@@ -843,16 +820,8 @@ class OverlayWindowController {
                 return
             }
             if event.keyCode == 53 {
-                guard self?.colorSamplerActiveProvider() != true else { return }
                 self?.cancel()
             }
-        }
-        // The overlay is a non-activating panel, so keyboard events routed
-        // to the foreground app never reach our local monitor. Mirror the
-        // legacy ⌘+C handling with a global monitor so it still fires when
-        // another app is focused underneath.
-        magnifierLensPanelKeyDownGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            _ = self?.handleMagnifierLensPanelCopyShortcut(for: event, allowsPlainC: false)
         }
         mouseMovedLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
             self?.refreshMagnifierLensPanelContent()
@@ -1143,8 +1112,6 @@ class OverlayWindowController {
             hint = L10n.pinEditExitHint
         case .fullScreen:
             hint = L10n.fullScreenEditExitHint
-        case .merge:
-            hint = L10n.mergeEditExitHint
         case .finder, nil:
             hint = L10n.finderEditExitHint
         }
@@ -1350,11 +1317,9 @@ class OverlayWindowController {
 
         magnifierLensPanel?.dismiss()
         magnifierLensPanel = nil
-        magnifierLensPanelFormat = .hex
 
         if let m = escLocalMonitor { NSEvent.removeMonitor(m); escLocalMonitor = nil }
         if let m = escGlobalMonitor { NSEvent.removeMonitor(m); escGlobalMonitor = nil }
-        if let m = magnifierLensPanelKeyDownGlobalMonitor { NSEvent.removeMonitor(m); magnifierLensPanelKeyDownGlobalMonitor = nil }
         if let m = mouseMovedLocalMonitor { NSEvent.removeMonitor(m); mouseMovedLocalMonitor = nil }
         if let m = mouseMovedGlobalMonitor { NSEvent.removeMonitor(m); mouseMovedGlobalMonitor = nil }
         if let m = leftMouseLocalMonitor { NSEvent.removeMonitor(m); leftMouseLocalMonitor = nil }
@@ -1416,7 +1381,6 @@ class OverlayWindowController {
         guard magnifierLensPanel == nil else { return }
         let lens = MagnifierLensPanelWindow()
         magnifierLensPanel = lens
-        magnifierLensPanelFormat = .hex
         lens.show()
         refreshMagnifierLensPanelContent()
     }
@@ -1436,72 +1400,16 @@ class OverlayWindowController {
               let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
               let snapshot = screenSnapshots[displayID],
               let screenFrame = screenFramesByDisplayID[displayID] else {
-            lens.update(snapshot: nil, screenFrame: .zero, mouseLocation: mouseLocation, format: magnifierLensPanelFormat)
+            lens.update(snapshot: nil, screenFrame: .zero, mouseLocation: mouseLocation)
             return
         }
         lens.update(
             snapshot: snapshot,
             screenFrame: screenFrame,
-            mouseLocation: mouseLocation,
-            format: magnifierLensPanelFormat
+            mouseLocation: mouseLocation
         )
     }
 
-    private func toggleMagnifierLensPanelFormatFromKeyboard(for event: NSEvent) -> Bool {
-        guard magnifierLensPanelActive else { return false }
-        guard event.keyCode == 3 else { return false } // kVK_ANSI_F
-        let modifierMask: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
-        guard event.modifierFlags.intersection(modifierMask).isEmpty else { return false }
-        if !event.isARepeat {
-            toggleMagnifierLensPanelFormat()
-        }
-        return true
-    }
-
-    private func toggleMagnifierLensPanelFormat() {
-        magnifierLensPanelFormat = (magnifierLensPanelFormat == .hex) ? .rgb : .hex
-        magnifierLensPanel?.setFormat(magnifierLensPanelFormat)
-    }
-
-    /// Returns `true` when the event represents C (locally) or legacy ⌘+C.
-    /// Plain C is never claimed from the global monitor because that would also
-    /// type into whichever source app remains active beneath the overlay.
-    private func handleMagnifierLensPanelCopyShortcut(
-        for event: NSEvent,
-        allowsPlainC: Bool
-    ) -> Bool {
-        guard magnifierLensPanelActive else { return false }
-        guard event.keyCode == 8 else { return false } // kVK_ANSI_C
-        let mods = event.modifierFlags.intersection([.command, .option, .control])
-        let isLegacyCommandC = mods == .command
-        let isPlainC = allowsPlainC
-            && mods.isEmpty
-            && !event.modifierFlags.contains(.shift)
-        guard isPlainC || isLegacyCommandC else { return false }
-        guard let lens = magnifierLensPanel, let sample = lens.currentSample else { return false }
-        copyMagnifierLensPanelColor(sample)
-        return true
-    }
-
-    private func copyMagnifierLensPanelColor(_ sample: MagnifierLensPanelWindow.Sample) {
-        let hex = String(format: "#%02X%02X%02X", sample.r, sample.g, sample.b)
-        let rgb = L10n.magnifierLensPanelRgbString(r: sample.r, g: sample.g, b: sample.b)
-        let value: String
-        switch magnifierLensPanelFormat {
-        case .hex:
-            value = hex
-            ClipboardManager.copyColorToClipboard(hex: hex)
-        case .rgb:
-            value = rgb
-            ClipboardManager.copyToClipboard(text: rgb, skipHistory: true)
-        }
-        if Defaults.historyCacheEnabled {
-            HistoryManager.shared.addColor(hex: hex)
-            Defaults.lastPickedColorHex = hex
-        }
-        let toastScreen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
-        ToastWindow.show(message: L10n.colorCopied(value), on: toastScreen)
-    }
 }
 
 // MARK: - SelectionViewDelegate

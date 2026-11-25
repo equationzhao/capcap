@@ -17,10 +17,7 @@
 "showCopyToast" = "Show Copy Confirmation";
 "showCopyToastHint" = "Show the toast after an image or file is copied to the clipboard";
 "historyCacheToggleLabel" = "Cache Screenshots";
-"historyCacheToggleHint" = "Store recent screenshots, picked colors, and upload links for quick reuse from the history panel";
-"clipboardTextCacheToggleLabel" = "Record Clipboard Text and Files";
-"clipboardTextCacheToggleHint" = "Keep text and source file references without copying files";
-"clipboardTextHistoryLimitLabel" = "Text / File History Limit";
+"historyCacheToggleHint" = "Store recent screenshots and recordings for quick reuse from the history panel";
 "historyCacheLabel" = "Image and Media History Limit";
 "historyPanelDisplayModeLabel" = "History Panel Display";
 "historyPanelDisplayModeHint" = "Choose Dialog or Notch for history";
@@ -68,8 +65,8 @@
 "pinToolbarCopy" = "Copy pinned image";
 "pinToolbarDrag" = "Drag pinned image";
 "pinToolbarEdit" = "Edit pinned image";
-"pinToolbarEditText" = "Edit text";
 "pinToolbarCloseText" = "Close";
+"pinToolbarEditText" = "Edit text";
 
 /* Image-edit shortcuts */
 "selectedImageEditShortcutHeader" = "Edit Selected Image";
@@ -88,8 +85,6 @@
 "recordShortcutDefaultDisplay" = "Not set";
 "fullScreenScreenshotShortcutHeader" = "Full Screen Screenshot";
 "fullScreenScreenshotShortcutDefaultDisplay" = "Not set";
-"colorPickerShortcutHeader" = "Color Picker";
-"colorPickerShortcutDefaultDisplay" = "Not set";
 
 /* Copy-to-clipboard shortcut (editor confirm) */
 "clipboardShortcutHeader" = "Copy to Clipboard";
@@ -124,13 +119,11 @@
 "shortcutConflictScreenshotTranslation" = "This key combination is already used by the Screenshot Translation shortcut. Please choose a different one";
 "shortcutConflictRecord" = "This key combination is already used by the Record shortcut. Please choose a different one";
 "shortcutConflictFullScreenScreenshot" = "This key combination is already used by the Full Screen Screenshot shortcut. Please choose a different one";
-"shortcutConflictColorPicker" = "This key combination is already used by the Color Picker shortcut. Please choose a different one";
 
 /* Menu bar */
 "takeScreenshot" = "Take Screenshot";
 "takeFullScreenScreenshot" = "Capture Full Screen";
 "record" = "Record";
-"colorPicker" = "Color Picker";
 "settings" = "Settings";
 "quitApp" = "Quit capcap";
 "historyMenu" = "History";
@@ -152,33 +145,17 @@
 "historyPanelFavoriteFailed" = "Could not change favorite";
 "historyDeletedSkippingFavorites" = "Items deleted: %d, favorites skipped: %d";
 "historyPanelFilterAll" = "All";
+"historyPanelFilterFavorites" = "Favorites";
 "historyPanelFilterScreenshots" = "Screenshots";
 "historyPanelFilterGIF" = "GIF";
 "historyPanelFilterMP4" = "MP4";
-"historyPanelFilterColors" = "Colors";
-"historyPanelFilterText" = "Text";
-"historyPanelSearchColorsAndText" = "Search colors, text, and files";
-"historyPanelSearchColors" = "Search colors";
-"historyPanelSearchText" = "Search text";
-"historyPanelClearSearch" = "Clear search";
-"historyPanelSearchNoResults" = "No matching history";
-"historyPreviewCopyText" = "Copy Text";
-"historyPreviewTranslateText" = "Translate Text";
-"historyPreviewConvertToQRCode" = "Convert to QR Code";
-"historyPreviewQRCodeTooLong" = "Text is too long to convert to a QR code";
-"historyPreviewOriginalText" = "Original Text";
-"historyPreviewQRCodeTitle" = "Text QR Code";
-"historyPanelCopyHint" = "Click to copy";
 "historyPanelCopyDragHint" = "Click to copy · drag into an app";
-"historyPanelCopyMarkdownLink" = "Copy MD link";
-"historyPanelCopyPlainLink" = "Copy plain link";
 "historyPanelEmpty" = "No history yet";
 "historyPanelShortcutGuide" = "Keyboard shortcuts";
 "historyPanelShortcutGuideHide" = "Show history";
 "historyPanelShortcutKeyClick" = "Click";
 "historyPanelShortcutKeyDrag" = "Drag";
 "historyPanelShortcutKeySpace" = "Space";
-"historyPanelShortcutSearch" = "Search or close search";
 "historyPanelShortcutSwitchFilter" = "Switch categories";
 "historyPanelShortcutSwitchItem" = "Switch to the previous or next item";
 "historyPanelShortcutToggleSelection" = "Select or deselect one item";
@@ -193,9 +170,6 @@
 "historyPanelShortcutCopyPreview" = "Copy preview content";
 "historyPanelShortcutEditImage" = "Edit image";
 "historyPanelShortcutPinImage" = "Pin image";
-"historyPanelShortcutUploadImage" = "Upload image";
-"historyPanelShortcutTranslateText" = "Translate text";
-"historyPanelShortcutQRCode" = "Create QR code";
 "historyPanelShortcutToggleGuide" = "Show or hide keyboard shortcuts";
 
 /* Cursor chip */
@@ -249,7 +223,6 @@
 "recordingStop" = "Stop Recording";
 "recordingPause" = "Pause";
 "recordingResume" = "Resume";
-"colorCopied" = "Copied color %@";
 "qrCodeCopied" = "QR code content copied";
 "qrCodeNotFound" = "No QR code found";
 
@@ -275,8 +248,6 @@
 "tipMoreEmoji" = "More Emoji";
 "tipMoreBeautifyPresets" = "More Beautify Presets";
 "tipInsertImage" = "Insert Image";
-"tipColorPicker" = "Color Picker";
-"tipPickedInkBottle" = "Use the color picker to fill the ink bottle";
 "tipUndo" = "Undo";
 "tipRedo" = "Redo";
 "tipMoveSelection" = "Move Selection";
@@ -351,7 +322,6 @@
 "settingsTabGeneral" = "General";
 "settingsTabShortcuts" = "Shortcuts";
 "settingsTabPermissions" = "Permissions";
-"settingsTabUpload" = "Upload";
 "settingsTabAbout" = "About";
 "settingsTabTranslation" = "Translation";
 "settingsTabToolbar" = "Toolbar";
@@ -385,9 +355,6 @@
 "aboutTagline" = "Menu bar screenshot tool";
 "aboutLicense" = "License";
 "aboutSourceCode" = "Source code";
-"aboutStarOnGitHub" = "Star capcap on GitHub 🌟";
-"aboutFeatureRequest" = "Request a feature";
-"aboutBugReport" = "Report a bug";
 "aboutUpdateTitle" = "Updates";
 "aboutErrorLog" = "Error Log";
 "aboutErrorLogNoCrash" = "No error logs";
@@ -397,7 +364,7 @@
 "aboutErrorLogReveal" = "Show in Finder";
 "aboutErrorLogRefresh" = "Refresh Log";
 "aboutErrorLogClear" = "Clear Log";
-"aboutErrorLogEmptyBody" = "capcap hasn't recorded any error logs yet. If the app freezes or crashes, come back here to copy the log for a bug report";
+"aboutErrorLogEmptyBody" = "capcap hasn't recorded any error logs yet";
 
 /* Updates — About pane */
 "checkForUpdates" = "Check for Updates";
@@ -447,26 +414,9 @@
 "quitConfirmAction" = "Quit";
 "quitConfirmCancel" = "Cancel";
 
-/* Upload — toolbar / toast / progress */
-"tipUpload" = "Upload to image host";
-"uploadingTitle" = "Uploading";
-"uploadCopied" = "Image URL copied";
-"uploadCopiedMarkdown" = "Markdown link copied";
-"uploadNoProvider" = "Configure an uploader in Settings first";
-"uploadFailedPrefix" = "Upload failed";
 
-/* Upload — settings tab */
-"uploadDefaultProvider" = "Default Uploader";
-"uploadDefaultNone" = "Disabled";
-"uploadSetDefaultButton" = "Set Default";
-"uploadSaveButton" = "Save";
-"uploadClearButton" = "Clear";
-"uploadSavedToast" = "Config saved";
-"uploadCurrentDefault" = "Current default";
-"uploadMarkdownToggleTitle" = "Copy as Markdown link";
-"uploadMarkdownToggleSubtitle" = "When on, copies a Markdown image tag (![](url)) after upload; when off, copies a plain URL. In History Panel, cloud images follow this setting on click, with hover buttons for MD or plain links";
 "filenameRuleTitle" = "File name rules";
-"filenameRuleSubtitle" = "Controls image uploads, image save defaults, and recording save defaults. Extensions are added automatically";
+"filenameRuleSubtitle" = "Controls the default filenames for saved images and recordings. Extensions are added automatically";
 "filenameRulePresetLabel" = "Preset";
 "filenameRulePresetCustom" = "Custom";
 "filenameRulePresetShort" = "Short";
@@ -484,55 +434,10 @@
 "filenameRuleVariableSize" = "Size";
 "filenameRulePreview" = "%@";
 
-/* Upload — provider field labels */
-"uploadFieldBucket" = "Bucket";
-"uploadFieldBucketSpace" = "Bucket";
-"uploadFieldRegion" = "Region";
-"uploadFieldRegionOptional" = "Optional region";
-"uploadFieldPathOptional" = "Optional path";
-"uploadFieldCustomUrlOptional" = "Optional custom URL";
-"uploadFieldPublicDomain" = "Public Domain";
-"uploadFieldEndpointArea" = "Endpoint";
-"uploadFieldEndpointOptional" = "Optional endpoint";
-"uploadFieldCustomEndpoint" = "Upload endpoint";
-"uploadFieldCustomFileField" = "File field name";
-"uploadFieldCustomHeadersOptional" = "Headers optional";
-"uploadFieldCustomResponsePathOptional" = "URL path optional";
-"uploadFieldAccountId" = "Account ID";
-"uploadTestImageFailed" = "Failed to build test image";
 
-/* Upload — provider names */
-"providerTencentCOS" = "Tencent COS";
-"providerQiniuKodo" = "Qiniu Kodo";
-"providerCustomHTTP" = "Custom HTTP host";
-"providerAliyunOSS" = "Aliyun OSS";
 
-/* Upload — errors */
-"uploadErrMissingConfig" = "No uploader configured";
-"uploadErrInvalidConfigPrefix" = "Invalid config";
-"uploadErrNetworkPrefix" = "Network error";
-"uploadErrServerPrefix" = "Upload failed code %d";
-"uploadCustomInvalidEndpoint" = "Use an HTTPS endpoint or a local HTTP endpoint";
-"uploadCustomInvalidFileField" = "The file field name contains invalid characters";
-"uploadCustomInvalidHeader" = "Headers must use the format Header: Value";
-"uploadCustomResponseURLMissing" = "No valid image URL was found in the response";
-"uploadErrUnexpectedResponsePrefix" = "Unexpected response";
-"missingField" = "Missing %@";
 
-/* Upload — test/validation pill */
-"uploadStatusUntested" = "Not tested";
-"uploadStatusTesting" = "Testing";
-"uploadStatusValid" = "Active";
-"uploadStatusInvalid" = "Invalid config";
 
-/* Upload — log lines */
-"uploadLogStartingTest" = "Starting test upload";
-"uploadLogConfigSaved" = "Config saved";
-"uploadLogMissingFields" = "Missing required fields: %@";
-"uploadLogTestSucceeded" = "Test upload succeeded: %@";
-"uploadLogTestFailed" = "Test upload failed: %@";
-"uploadLogProviderDisabled" = "Provider disabled";
-"uploadLogConfigCleared" = "Config cleared";
 
 /* Permissions — status label */
 "permissionGranted" = "Granted";
@@ -600,54 +505,16 @@
 "translationErrBadEndpoint" = "Invalid endpoint";
 "translationErrBadResponse" = "Unexpected response";
 
-/* Image Merge */
-"imageMergeShortcutHeader" = "Merge Images";
-"imageMergeShortcutDefaultDisplay" = "Not set";
-"shortcutConflictImageMerge" = "This key combination is already used by the Merge Images shortcut. Please choose a different one";
-"mergeImages" = "Merge Images";
-"mergeEditExitHint" = "Editing merged image. Press X to exit editing";
-"imageMergeNeedTwoImages" = "Select at least two Finder images to merge";
-"imageMergeSomeImagesSkipped" = "Some images could not be loaded";
-"imageMergeNoClipboardImage" = "No image on the clipboard";
-"imageMergeFailed" = "Image merge failed";
-"imageMergeSaved" = "Merged image saved";
-"imageMergeWindowTitle" = "Merge Images";
-"imageMergeSources" = "Sources";
-"imageMergeAddFiles" = "Add Files";
-"imageMergeAddFromClipboard" = "Add from Clipboard";
-"imageMergeImageList" = "Images";
-"imageMergeTemplate" = "Arrangement";
-"imageMergeTemplateHorizontal" = "Horizontal";
-"imageMergeTemplateVertical" = "Vertical";
-"imageMergeTemplateGrid" = "Grid";
-"imageMergeTemplateLongStitch" = "Long Stitch";
-"imageMergeLayout" = "Layout";
-"imageMergeSpacing" = "Spacing";
-"imageMergeMargin" = "Outer Margin";
-"imageMergeCornerRadius" = "Corner Radius";
-"imageMergeBackground" = "Background";
-"imageMergeTransparent" = "Transparent";
-"imageMergeSolid" = "Solid";
-"imageMergeOutput" = "Output";
-"imageMergeCopy" = "Copy";
-"imageMergeSave" = "Save";
-"imageMergeContinueEditing" = "Edit";
-"imageMergeClose" = "Close";
-"imageMergeEmptyTitle" = "Drop images to merge";
-"imageMergeEmptyBody" = "Add files, paste from clipboard, or drag images here";
-"imageMergeClipboardSourceName" = "Clipboard Image";
 
 /* Screenshot quality */
 "screenshotQualityTitle" = "Screenshot quality";
-"screenshotQualitySubtitle" = "Screenshots are processed before upload, save, or copy, original is the default";
-"screenshotQualityUploadLabel" = "Upload";
+"screenshotQualitySubtitle" = "Screenshots use the selected quality when saved or copied. The default is original quality";
 "screenshotQualitySaveLabel" = "Save to file";
 "screenshotQualityClipboardLabel" = "Copy to clipboard";
 "screenshotQualityOriginal" = "Original";
 "screenshotQualityOriginalHint" = "PNG at full size and lossless quality, largest file";
 "screenshotQualityCompressed" = "Compressed";
 "screenshotQualityCompressedHint" = "Keeps original dimensions and uses local PNG compression";
-"screenshotQualityCompressingUpload" = "Compressing before upload";
 "screenshotQualityCompressingSave" = "Compressing before save";
 "screenshotQualityCompressingClipboard" = "Compressing before copy";
 "screenshotCompressionFailed" = "Image compression failed";
@@ -685,33 +552,10 @@
 
 /* Magnifier lens panel */
 "magnifierLensPanelCoordinatesLabel" = "Coordinates";
-"magnifierLensPanelColorValueLabel" = "Color";
 "magnifierLensPanelCoordinates" = "Coordinates: %@, %@";
-"magnifierLensPanelHex" = "HEX: %@";
-"magnifierLensPanelRgb" = "RGB: %@";
-"magnifierLensPanelRgbString" = "rgb(%d, %d, %d)";
-"magnifierLensPanelCopyHint" = "Copy color(C)";
-"magnifierLensPanelFormatHint" = "Color format(F)";
 "magnifierLensPanelAspectFree" = "Free";
 "magnifierLensPanelAspectHint" = "Capture ratio(R)";
-/* File upload */
-"fileUploadShortcutHeader" = "Upload Files";
-"finderUploadShortcutDefaultDisplay" = "Not set";
-"shortcutConflictFileUpload" = "This key combination is already used by the Upload Files shortcut. Please choose a different one";
-"uploadFilesMenu" = "Upload Files";
-"finderUploadDialogTitle" = "Upload to Image Host";
-"finderUploadDialogHeading" = "Files to Upload";
-"finderUploadSummary" = "%d files selected · %@";
-"finderUploadSelectAll" = "Select All";
-"finderUploadAction" = "Upload %d Files";
-"finderUploadRetryAction" = "Retry %d Files";
-"finderUploadingProgress" = "Uploading %d/%d";
-"finderUploadSucceeded" = "Uploaded";
-"finderUploadFailed" = "Failed";
-"finderUploadErrorLogTitle" = "Error Log";
-"finderUploadUnknownSize" = "Unknown size";
-"finderUploadReadFailed" = "Cannot read file %@";
-"finderUploadCompleted" = "Uploaded %d files and copied links";
+
 
 "historyNotchTriggerLabel" = "Notch activation";
 "historyNotchTriggerHover" = "Open on hover";
@@ -724,7 +568,6 @@
 "settingsGeneralHistory" = "History";
 "settingsGeneralFiles" = "Files & Output";
 
-"historyPreviewTextSaveFailed" = "Unable to save text, please try again";
 
 "windowCapturePreparing" = "Preparing screenshot";
 
@@ -754,25 +597,8 @@
 "ocrTimeoutError" = "OCR timed out · Check the service or try again";
 "ocrRequestFailed" = "OCR request failed";
 
-"historyPanelFilterFiles" = "Files";
 
 "historyPanelFolder" = "Folder";
-
-"historyPanelSearchFiles" = "Search file names and paths";
-
-"historyPanelSourceUnavailable" = "Source unavailable";
-
-"historyPanelSourceUnavailableHint" = "Some source files are deleted, offline, or not downloaded";
-
-"historyFilePreviewPrevious" = "Previous file";
-
-"historyFilePreviewNext" = "Next file";
-
-"historyFilePreviewLoading" = "Loading preview";
-
-"historyFilePreviewRetry" = "Check again";
-
-"historyFilePreviewUnavailable" = "Preview unavailable for this file";
 "editorStrokeWidth" = "Stroke Width";
 "editorFontSize" = "Font Size";
 "ocrPinPanel" = "Pin Panel";

@@ -113,52 +113,38 @@ final class HistoryFavoriteTests: XCTestCase {
                        "已删除 0 个项目，跳过 2 个收藏")
     }
 
-    func testCacheDisablingKeepsFavoritesOfEachType() throws {
+    func testCacheDisablingKeepsFavoriteMediaAndSkipsLegacyEntries() throws {
         let favoriteImage = try makeFile(name: "favorite.png", contents: Data([0x01]))
         let plainImage = try makeFile(name: "plain.png", contents: Data([0x02]))
-        let favoriteText = try makeFile(name: "favorite.txt", contents: Data("saved".utf8))
-        let plainText = try makeFile(name: "plain.txt", contents: Data("temporary".utf8))
+        let legacyText = try makeFile(name: "note.txt", contents: Data("saved".utf8))
         XCTAssertTrue(HistoryManager.setFavorite(true, on: favoriteImage))
-        XCTAssertTrue(HistoryManager.setFavorite(true, on: favoriteText))
 
-        let candidates = [favoriteImage, plainImage, favoriteText, plainText]
-        let mediaResult = HistoryManager.removeStoredHistoryEntries(
-            candidates, withExtensions: ["png", "gif", "mp4", "color"])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: plainText.path),
-                      "disabling media cache must not clear text history")
-        let textResult = HistoryManager.removeStoredHistoryEntries(
-            candidates, withExtensions: ["txt"])
+        let result = HistoryManager.removeStoredHistoryEntries(
+            [favoriteImage, plainImage, legacyText], withExtensions: HistoryRetentionPolicy.mediaExtensions
+        )
 
-        XCTAssertEqual(mediaResult.removed, [plainImage])
-        XCTAssertEqual(textResult.removed, [plainText])
-        XCTAssertEqual(mediaResult.kept, [favoriteImage])
-        XCTAssertEqual(textResult.kept, [favoriteText])
+        XCTAssertEqual(result.removed, [plainImage])
+        XCTAssertEqual(result.kept, [favoriteImage])
         XCTAssertTrue(FileManager.default.fileExists(atPath: favoriteImage.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: favoriteText.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: legacyText.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: plainImage.path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: plainText.path))
     }
 
-    func testFavoritesRemainVisibleWhenTheirCacheIsDisabled() throws {
+    func testOnlySupportedFavoritesRemainVisibleWhenCacheIsDisabled() throws {
         let favoriteImage = try makeFile(name: "favorite.png", contents: Data([0x01]))
         let plainImage = try makeFile(name: "plain.png", contents: Data([0x02]))
-        let favoriteText = try makeFile(name: "favorite.txt", contents: Data("saved".utf8))
-        let unsupported = try makeFile(name: "favorite.pdf", contents: Data([0x03]))
-        for url in [favoriteImage, favoriteText, unsupported] {
-            XCTAssertTrue(HistoryManager.setFavorite(true, on: url))
-        }
+        let legacyText = try makeFile(name: "favorite.txt", contents: Data("saved".utf8))
+        XCTAssertTrue(HistoryManager.setFavorite(true, on: favoriteImage))
+        XCTAssertTrue(HistoryManager.setFavorite(true, on: legacyText))
 
-        let supported: Set<String> = ["png", "txt"]
+        let supported = HistoryRetentionPolicy.mediaExtensions
         XCTAssertTrue(HistoryManager.shouldIncludeEntry(favoriteImage,
-                                                        allowedExtensions: [],
-                                                        supportedExtensions: supported))
-        XCTAssertTrue(HistoryManager.shouldIncludeEntry(favoriteText,
                                                         allowedExtensions: [],
                                                         supportedExtensions: supported))
         XCTAssertFalse(HistoryManager.shouldIncludeEntry(plainImage,
                                                          allowedExtensions: [],
                                                          supportedExtensions: supported))
-        XCTAssertFalse(HistoryManager.shouldIncludeEntry(unsupported,
+        XCTAssertFalse(HistoryManager.shouldIncludeEntry(legacyText,
                                                          allowedExtensions: [],
                                                          supportedExtensions: supported))
     }
@@ -221,7 +207,7 @@ final class HistoryFavoriteTests: XCTestCase {
 
     private func makeEntry(name: String) throws -> HistoryEntry {
         let url = try makeFile(name: name, contents: Data([0x01]))
-        return HistoryEntry(fileURL: url, createdAt: Date(), kind: .image, cloudURL: nil)
+        return HistoryEntry(fileURL: url, createdAt: Date(), kind: .image)
     }
 
     @discardableResult

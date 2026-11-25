@@ -289,7 +289,7 @@ struct DictionaryEntry: Codable, Equatable {
 // MARK: - Persistence
 
 /// Stores one JSON-encoded config plus an enabled flag per provider in
-/// UserDefaults — mirrors the upload `ProviderConfigStore` pattern.
+/// UserDefaults.
 enum TranslationConfigStore {
     private static let providerOrderKey = "translation.providerOrder"
 

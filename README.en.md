@@ -5,7 +5,7 @@
 <h1 align="center">capcap</h1>
 
 <p align="center">
-  The fastest menu bar screenshot tool for macOS: double-tap <code>⌘</code> to capture, annotate, scroll-stitch, beautify, pin, and upload.
+  The fastest menu bar screenshot tool for macOS: double-tap <code>⌘</code> to capture, annotate, scroll-stitch, beautify, and pin.
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@
   <a href="https://github.com/realskyrin/capcap/issues">Issues</a>
 </p>
 
-**The fastest way to grab, mark up, and share screenshots on macOS.** Double-tap `⌘` from anywhere — snap to a window, drag a region, scroll-stitch a long page, then annotate and beautify in one tight floating window. Lives in your menu bar. No Dock icon, no telemetry, no subscription, no third-party dependencies. Bring your own object storage if you want a one-click cloud URL.
+**The fastest way to grab, mark up, and share screenshots on macOS.** Double-tap `⌘` from anywhere — snap to a window, drag a region, scroll-stitch a long page, then annotate and beautify in one tight floating window. Lives in your menu bar. No Dock icon, no telemetry, no subscription, no third-party dependencies.
 
 <p align="center">
   <img src="images/editor.png" alt="capcap annotation editor — arrows, numbered callouts, mosaic, highlighter and text layered on a screenshot in a single floating toolbar" width="760" />
@@ -53,9 +53,8 @@
 - **Scroll-stitch long content.** Capture a scrolling area, watch the stitched preview live, and keep editing the merged result.
 - **Beautify and pin.** Wrap shots in gradient or wallpaper backgrounds with rounded corners and shadow, or pin the final image floating above any window.
 - **Edit Finder images too.** Select a single image file in Finder and trigger the same shortcut to load it straight into the editor — the original is never touched.
-- **History panel.** Recent screenshots and picked colors are one click away from re-copying, with hover stars for favorites — local-only, configurable size.
+- **History panel.** Recent screenshots and recordings are one click away from re-copying, with hover stars for favorites — local-only, configurable size.
 - **OCR and on-device translation.** Apple Vision recognizes image text locally; on macOS 15+, Apple Translation can translate it on device, while your own AI or DeepL providers remain available.
-- **One-click upload to your own image host.** Optional: configure Tencent COS, Qiniu Kodo, Aliyun OSS, or a custom HTTP host once and the editor's upload button copies a public URL straight to your clipboard. Credentials stay on your Mac.
 - **Native AppKit interface.** No Electron and no telemetry. Small, fast, and respectful of macOS.
 
 ## Showcase
@@ -77,12 +76,6 @@
     <sub><b>Beautify in one click</b><br/>Gradient or wallpaper backgrounds, rounded corners, shadow and padding — all adjustable.</sub>
   </td>
 </tr>
-<tr>
-  <td colspan="2" align="center">
-    <img src="images/image-hosting.png" alt="Settings panel showing Tencent COS, Qiniu Kodo, and Aliyun OSS image-host providers, with Aliyun OSS marked as default" width="520" /><br/>
-    <sub><b>Bring-your-own image host</b><br/>Configure Tencent COS, Qiniu Kodo, or Aliyun OSS once — upload the current screenshot and copy its public URL with a single click.</sub>
-  </td>
-</tr>
 </table>
 
 ## Features
@@ -92,13 +85,11 @@
 - **Multi-display support** — creates overlays on every connected screen and captures at full Retina resolution.
 - **Full annotation editor** — rectangle, ellipse, arrow, pen, highlighter, mosaic, numbered callouts, and text.
 - **Editable annotations** — move existing marks, change color and size, rotate supported annotations, bend arrows/callouts, edit text, delete marks, and use undo/redo.
-- **Scroll capture** — adapts ScrollSnap's multi-region overlap matching, preserves captured content while backtracking, and retains a reliable reference frame after a failed match. capcap provides the interface, capture, live preview, editing, and upload flow.
+- **Scroll capture** — adapts ScrollSnap's multi-region overlap matching, preserves captured content while backtracking, and retains a reliable reference frame after a failed match. capcap provides the interface, capture, live preview, and editing.
 - **Beautify mode** — wrap screenshots in rounded corners, soft shadow, gradient presets, wallpaper background, and adjustable padding.
-- **Color picker** — use the macOS color sampler, copy the picked hex value, and keep it in history.
 - **Pin to screen** — float the current screenshot above other windows as a draggable reference image.
 - **Save or copy** — save as PNG, confirm to copy PNG/TIFF data to the clipboard, or cancel without output.
-- **Recent history** — a dedicated panel for screenshots, recordings, picked colors, and text, with filters, search, quick re-copy, and a configurable cache size.
-- **Image-host upload** — optional one-click upload to Tencent COS, Qiniu Kodo, Aliyun OSS, or a custom HTTP host; the public URL is copied to the clipboard and stored alongside the thumbnail in History. Credentials live only in your local UserDefaults; pick one provider as the default and the editor's upload button lights up.
+- **Recent history** — a dedicated panel for screenshots and recordings, with filters, quick re-copy, and a configurable cache size.
 - **Custom trigger** — use the default double-tap `⌘`, or record a custom global shortcut in Settings.
 - **External recording compatibility** — selection overlays and the editor are visible to external screen recorders by default, with no extra setting.
 - **Settings and localization** — UI in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, French, Russian, and Vietnamese, plus menu bar icon toggle, launch at login, permission status, shortcut recording, and history cache size.
@@ -165,7 +156,7 @@ The app bundle is output to `build/capcap.app`; DMGs are output to `dist/`.
 
 1. Double-tap `⌘ Command`, press your custom shortcut, or choose **Take Screenshot** from the menu bar.
 2. Hover a window and click to capture it, or drag to select any region.
-3. Use the floating toolbar to annotate, pick a color, start scroll capture, beautify, save, pin, cancel, or confirm.
+3. Use the floating toolbar to annotate, start scroll capture, beautify, save, pin, cancel, or confirm.
 4. Click the green checkmark or press `Enter` to copy the final image to the clipboard. Press `Esc` or click `x` to cancel.
 
 To edit an existing image instead of taking a screenshot, click a single image file in Finder (so it's the current Finder selection), then trigger the same shortcut. capcap copies the file into a temporary working location and opens it in the editor with the toolbar already up. If anything other than exactly one image is selected, the shortcut behaves as a normal screenshot trigger.
@@ -181,14 +172,12 @@ To edit an existing image instead of taking a screenshot, click a single image f
 | Mosaic | Brush pixelated regions over sensitive content, with adjustable block size |
 | Numbered | Add incrementing callout badges; drag while placing to add an arrow |
 | Text | Add editable single-line text with color and 10-100 pt size controls |
-| Eyedropper | Pick any screen color and copy its `#RRGGBB` value |
 | Undo / Redo | Revert and restore editor changes |
 | Move Selection | Drag the whole selected screenshot region after selection |
 | Scroll Capture | Scroll inside the selected area, stitch frames, and continue editing the merged result |
 | Beautify | Add gradient or wallpaper backgrounds, rounded corners, shadow, and padding |
 | Save | Save the current result as a PNG |
 | Pin | Keep the current result floating above other windows |
-| Upload | Upload the current result to the configured image host and copy the public URL |
 | Confirm | Copy the final result to the clipboard |
 
 When an annotation is selected, capcap shows adjustment handles where supported: rotation for shapes, strokes, and text; curve handles for arrows and numbered callouts; endpoint handles for arrows; and edit/delete actions for text and selected annotations.
@@ -201,13 +190,12 @@ Open Settings from the menu bar to configure:
 - Menu bar icon visibility
 - Launch at login
 - Screenshot shortcut: keep double-tap `⌘`, record a custom shortcut, or restore the default
-- History cache size, from 5 to 20 recent screenshots/colors
-- Image-host upload: enable Tencent COS, Qiniu Kodo, Aliyun OSS, or a custom HTTP host; custom hosts accept an endpoint, file field name, request headers, and response URL path
+- History cache size for recent screenshots and recordings
 - Accessibility and Screen Recording permission shortcuts
 
 ## History
 
-The history panel reads recent screenshots, recordings, picked colors, and text from `~/Library/Application Support/capcap/History`. Hover an entry and click its bottom-right star to favorite it; as soon as an entry is favorited, a star tab appears, and clicking a star while multiple entries are selected favorites the whole selection. Favorites survive automatic pruning and Delete All History. You can also filter, search, preview, delete selected entries, and open the cache folder in Finder.
+The history panel reads recent screenshots and recordings from `~/Library/Application Support/capcap/History`. Hover an entry and click its bottom-right star to favorite it; as soon as an entry is favorited, a star tab appears, and clicking a star while multiple entries are selected favorites the whole selection. Favorites survive automatic pruning and Delete All History. You can also filter, preview, delete selected entries, and open the cache folder in Finder.
 
 ## Project Structure
 
@@ -217,7 +205,6 @@ The history panel reads recent screenshots, recordings, picked colors, and text 
 - `capcap/Trigger/` — double-tap `⌘` monitor and custom Carbon hotkey registration
 - `capcap/UI/` — menu bar controller, toast, cursor chip, and tooltips
 - `capcap/Settings/` — startup/settings window and preferences UI
-- `capcap/Upload/` — image-host providers (Tencent COS, Qiniu Kodo, Aliyun OSS, custom HTTP), HMAC signing, progress-tracking HTTP wrapper, and the floating upload chip
 - `capcap/Utilities/` — defaults, localization, and launch-at-login support
 - `scripts/` — compile check, bundle, rebuild/open, icon, and DMG helpers
 

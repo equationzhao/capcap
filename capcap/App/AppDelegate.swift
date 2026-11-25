@@ -16,15 +16,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var recordingCancelGlobalMonitor: Any?
     private var recordingCancelRequested = false
     private var historyPanelController: HistoryPanelController?
-    private var fileUploadWindowController: FinderUploadWindowController?
-    private var fileUploadOpenPanel: NSOpenPanel?
     private var countdownActive = false
     private var appInitialized = false
     private var suspendedEditDraft: OverlayWindowController.SuspendedEditDraft?
     private var pendingReopenSettingsWorkItem: DispatchWorkItem?
     private var pendingOpenImageURLs: [URL] = []
     private var startupDialogShown = false
-    private let clipboardTextHistoryMonitor = ClipboardTextHistoryMonitor()
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
@@ -32,7 +29,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         registerShareHandoffObserver()
-        clipboardTextHistoryMonitor.start()
 
         if appInitialized {
             flushPendingOpenImageURLs()
@@ -45,10 +41,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             showStartupDialog()
         }
-    }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        clipboardTextHistoryMonitor.stop()
     }
 
     func applicationDidChangeScreenParameters(_ notification: Notification) {
@@ -122,9 +114,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if AppPermissions.screenRecordingGranted {
             ScreenSnapshotProvider.shared.prewarm()
         }
-        ImageMergeLauncher.shared.onContinueEditing = { [weak self] image in
-            self?.continueEditingMergedImage(image)
-        }
         historyPanelController = HistoryPanelController { [weak self] entry in
             _ = self?.launchImageFile(entry.fileURL)
         }
@@ -137,9 +126,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onTakeFullScreenScreenshot: { [weak self] in self?.handleFullScreenScreenshotTrigger() },
             onRecord: { [weak self] in self?.handleRecordingTrigger() },
-            onMergeImages: { [weak self] in self?.handleImageMergeMenuTrigger() },
-            onUploadFiles: { [weak self] in self?.handleFileUploadTrigger() },
-            onColorPicker: { [weak self] in self?.handleColorPickerTrigger() },
             onOpenHistoryPanel: { [weak self] in self?.handleHistoryPanelTrigger(holdOpenUntilMouseEnters: true) },
             onOpenSettings: { [weak self] in self?.openSettings() }
         )
@@ -301,36 +287,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             HotkeyManager.shared.unregisterRecord()
         }
 
-        if Defaults.hasCustomImageMergeHotkey {
-            HotkeyManager.shared.registerImageMerge { [weak self] in
-                self?.handleImageMergeShortcutTrigger()
-            }
-        } else {
-            HotkeyManager.shared.unregisterImageMerge()
-        }
-
-        if Defaults.hasCustomFinderUploadHotkey {
-            HotkeyManager.shared.registerFinderUpload { [weak self] in
-                self?.handleFileUploadTrigger()
-            }
-        } else {
-            HotkeyManager.shared.unregisterFinderUpload()
-        }
-
         if Defaults.hasCustomFullScreenScreenshotHotkey {
             HotkeyManager.shared.registerFullScreenScreenshot { [weak self] in
                 self?.handleFullScreenScreenshotTrigger(fromShortcut: true)
             }
         } else {
             HotkeyManager.shared.unregisterFullScreenScreenshot()
-        }
-
-        if Defaults.hasCustomColorPickerHotkey {
-            HotkeyManager.shared.registerColorPicker { [weak self] in
-                self?.handleColorPickerTrigger()
-            }
-        } else {
-            HotkeyManager.shared.unregisterColorPicker()
         }
 
         if Defaults.hasCustomHistoryPanelHotkey {
@@ -353,10 +315,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.unregisterCopyImageText()
         HotkeyManager.shared.unregisterScreenshotTranslation()
         HotkeyManager.shared.unregisterRecord()
-        HotkeyManager.shared.unregisterImageMerge()
-        HotkeyManager.shared.unregisterFinderUpload()
         HotkeyManager.shared.unregisterFullScreenScreenshot()
-        HotkeyManager.shared.unregisterColorPicker()
         HotkeyManager.shared.unregisterHistoryPanel()
     }
 
@@ -663,93 +622,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         startCapture(postCaptureAction: .screenshotTranslation)
     }
 
-    func handleImageMergeMenuTrigger() {
-        guard overlayController == nil, recordingEngine == nil, !countdownActive else { return }
-        ImageMergeLauncher.shared.openEmpty()
-    }
-
-    func handleImageMergeShortcutTrigger() {
-        guard overlayController == nil,
-              recordingEngine == nil,
-              !countdownActive,
-              !ImageMergeLauncher.shared.isWorkbenchActive
-        else { return }
-        ImageMergeLauncher.shared.openFromShortcutSources()
-    }
-
-    func handleFileUploadTrigger() {
-        guard overlayController == nil, recordingEngine == nil, !countdownActive else { return }
-
-        if let controller = fileUploadWindowController {
-            controller.show()
-            return
-        }
-
-        let urls = FinderSelection.currentFileURLs()
-        guard !urls.isEmpty else {
-            showFileUploadOpenPanel()
-            return
-        }
-
-        showFileUploadDialog(fileURLs: urls)
-    }
-
-    private func showFileUploadOpenPanel() {
-        if let panel = fileUploadOpenPanel {
-            NSApp.activate(ignoringOtherApps: true)
-            panel.makeKeyAndOrderFront(nil)
-            return
-        }
-
-        let focusRestorer = SourceAppFocusRestorer.captureFrontmostApplication()
-        let panel = NSOpenPanel()
-        panel.title = L10n.uploadFilesMenu
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = true
-        panel.resolvesAliases = true
-        fileUploadOpenPanel = panel
-
-        NSApp.activate(ignoringOtherApps: true)
-        panel.begin { [weak self, weak panel] response in
-            guard let self, let panel else { return }
-            if self.fileUploadOpenPanel === panel {
-                self.fileUploadOpenPanel = nil
-            }
-            guard response == .OK else {
-                focusRestorer.restore()
-                return
-            }
-            self.showFileUploadDialog(fileURLs: panel.urls)
-        }
-    }
-
-    private func showFileUploadDialog(fileURLs: [URL]) {
-        let urls = fileURLs.filter { url in
-            let values = try? url.resourceValues(forKeys: [.isRegularFileKey])
-            return values?.isRegularFile == true
-        }
-        guard !urls.isEmpty else { return }
-
-        let controller = FinderUploadWindowController(fileURLs: urls) { [weak self] in
-            self?.fileUploadWindowController = nil
-        }
-        fileUploadWindowController = controller
-        controller.show()
-    }
-
-    func handleColorPickerTrigger() {
-        guard overlayController == nil, recordingEngine == nil, !countdownActive else { return }
-        let focusRestorer = SourceAppFocusRestorer.captureFrontmostApplication()
-        NSApp.activate(ignoringOtherApps: true)
-        let didStart = ColorPickerRunner.shared.run(onFinished: {
-            focusRestorer.restore()
-        })
-        if !didStart {
-            focusRestorer.restore()
-        }
-    }
-
     func handleFullScreenScreenshotTrigger(fromShortcut: Bool = false) {
         guard overlayController == nil, recordingEngine == nil, !countdownActive else { return }
         if fromShortcut {
@@ -891,29 +763,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return screen
         }
         return NSScreen.screens.first(where: { $0.frame == draft.screenFrame }) ?? NSScreen.main
-    }
-
-    private func continueEditingMergedImage(_ image: NSImage) {
-        guard overlayController == nil, recordingEngine == nil, !countdownActive else { return }
-        let focusRestorer = SourceAppFocusRestorer.captureFrontmostApplication()
-        guard let controller = ImageEditLauncher.launch(
-            generatedImage: image,
-            source: .merge,
-            onRequestFocusReturn: {
-                focusRestorer.restore()
-            },
-            onSuspend: { [weak self] draft in
-                self?.handleEditSuspension(draft)
-            },
-            onComplete: { [weak self] finalImage in
-                self?.handleEditCompletion(finalImage)
-            }
-        ) else {
-            ToastWindow.show(message: L10n.imageMergeFailed)
-            return
-        }
-        overlayController = controller
-        applyHotkeyState()
     }
 
     private func beginRecording(rect: NSRect, screen: NSScreen) {

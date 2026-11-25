@@ -157,7 +157,7 @@ original points to output pixels; cropped-away content remains absent.
 ## GUI operation when needed
 
 The CLI produces flattened PNGs; it does not create editable GUI sessions, perform
-OCR/translation, upload files, stitch scrolling pages or record video. Use the
+OCR/translation, stitch scrolling pages or record video. Use the
 actual interface for those workflows. `open -a /Applications/capcap.app image.png`
 opens an image for editing, with the existing marks flattened into that image.
 

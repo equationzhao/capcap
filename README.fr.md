@@ -5,7 +5,7 @@
 <h1 align="center">capcap</h1>
 
 <p align="center">
-  Outil de capture d'écran pour la barre des menus macOS : double-cliquez sur <code>⌘</code> pour capturer, annoter, assembler une longue page, embellir, épingler et téléverser.
+  Outil de capture d'écran pour la barre des menus macOS : double-cliquez sur <code>⌘</code> pour capturer, annoter, assembler une longue page, embellir, et épingler.
 </p>
 
 <p align="center">
@@ -47,9 +47,8 @@
 - **Capture longue** : faites défiler dans la zone sélectionnée, prévisualisez l'assemblage, puis continuez l'édition.
 - **Embellir et épingler** : ajoutez fond, arrondis, ombre et marges, ou gardez l'image au-dessus des autres fenêtres.
 - **Modifier les images Finder** : sélectionnez une image dans Finder et ouvrez-la directement dans l'éditeur sans toucher au fichier d'origine.
-- **Panneau d'historique** : recopiez rapidement captures, couleurs et liens, puis ajoutez des éléments aux favoris avec l'étoile affichée au survol.
+- **Panneau d'historique** : recopiez rapidement captures et enregistrements, puis ajoutez des éléments aux favoris avec l'étoile affichée au survol.
 - **OCR et traduction sur l’appareil** : Apple Vision reconnaît localement le texte des images ; sous macOS 15 et versions ultérieures, Apple Translation peut le traduire sur l’appareil, tout en conservant vos fournisseurs IA ou DeepL.
-- **Téléversement vers votre hébergeur** : Tencent COS, Qiniu Kodo et Aliyun OSS sont pris en charge. Les identifiants restent sur votre Mac.
 - **Interface AppKit native** : pas d’Electron ni de télémétrie.
 
 ## Aperçu
@@ -61,9 +60,6 @@
 <tr>
   <td width="50%" align="center"><img src="images/scroll-stitch.png" alt="Scroll capture" /><br/><sub><b>Assembler les longues pages</b><br/>Faites défiler et voyez le résultat en direct.</sub></td>
   <td width="50%" align="center"><img src="images/beautify.png" alt="Beautify mode" /><br/><sub><b>Embellissement en un clic</b><br/>Fond, arrondis, ombre et marges réglables.</sub></td>
-</tr>
-<tr>
-  <td colspan="2" align="center"><img src="images/image-hosting.png" alt="Image host settings" width="520" /><br/><sub><b>Hébergement d'images</b><br/>Téléversez et copiez l'URL publique dans le presse-papiers.</sub></td>
 </tr>
 </table>
 
@@ -113,7 +109,7 @@ bash scripts/rebuild-and-open.sh
 
 1. Double-cliquez sur `⌘ Command`, utilisez votre raccourci ou choisissez la capture dans la barre des menus.
 2. Cliquez une fenêtre ou faites glisser une zone.
-3. Utilisez la barre flottante pour annoter, choisir une couleur, capturer en défilement, embellir, enregistrer, épingler, téléverser ou confirmer.
+3. Utilisez la barre flottante pour annoter, capturer en défilement, embellir, enregistrer, épingler ou confirmer.
 4. Cliquez la coche verte ou appuyez sur `Enter` pour copier le résultat. `Esc` ou `x` annule.
 
 ## Outils d'édition
@@ -125,12 +121,11 @@ bash scripts/rebuild-and-open.sh
 | Stylo / surligneur | Tracer à main levée ou surligner |
 | Mosaïque | Pixelliser les zones sensibles |
 | Numéro / texte | Ajouter des repères numérotés ou du texte éditable |
-| Pipette | Copier une couleur d'écran en `#RRGGBB` |
-| Capture longue / embellir / épingler / téléverser | Finaliser et partager l'image |
+| Capture longue / embellir / épingler | Finaliser et partager l'image |
 
 ## Réglages
 
-Les réglages couvrent la langue, l'icône de barre des menus, le lancement à l'ouverture de session, les raccourcis, la taille de l'historique, l'hébergeur d'images et les accès rapides aux permissions. La sélection et l'éditeur apparaissent par défaut dans les enregistrements d'écran externes, sans réglage supplémentaire. L'interface prend en charge 简体中文, 繁體中文, English, 日本語, 한국어, Français, Русский et Tiếng Việt.
+Les réglages couvrent la langue, l'icône de barre des menus, le lancement à l'ouverture de session, les raccourcis, la taille de l'historique et les accès rapides aux permissions. La sélection et l'éditeur apparaissent par défaut dans les enregistrements d'écran externes, sans réglage supplémentaire. L'interface prend en charge 简体中文, 繁體中文, English, 日本語, 한국어, Français, Русский et Tiếng Việt.
 
 ## Licence
 

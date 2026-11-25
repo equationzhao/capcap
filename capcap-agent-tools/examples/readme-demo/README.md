@@ -1,6 +1,6 @@
 # README screenshot exercise
 
-These examples were captured from the working app and a local, fictional design-review page. They demonstrate the current editor, spotlight, magnifier, native beautification and five image-host providers. They contain no customer content. The app README documents retain their existing text and gallery layout; these files also provide alternative spotlight and magnifier examples for future documentation updates.
+These examples were captured from the working app and a local, fictional design-review page. They demonstrate the current editor, spotlight, magnifier, and native beautification. They contain no customer content. The app README documents retain their existing text and gallery layout; these files also provide alternative spotlight and magnifier examples for future documentation updates.
 
 ## Capture the source
 
@@ -32,18 +32,16 @@ The editor samples were captured on a 1470 × 956 point display. The app fits th
 
 1. Discover `agent windows --owner capcap --all --pretty`. Choose the full-size editor, not the notch panel. Capture its exact window ID into `/tmp/editor.png`
 2. Use the accessibility control `capcap.toolbar.beautify`, then the “more colors” control. Capture the editor into `/tmp/beautify.png`. Inspect it to confirm the palette and toolbars are present
-3. Close the editor and open settings. Select image hosting and collapse any expanded credential cards by clicking the inert card header. Do not toggle provider enablement, save fields or upload anything. Verify all five provider cards are visible and no credentials appear
-4. Discover the settings window by owner and title. Capture it into `/tmp/settings.png`; expected dimensions are 1592 × 1120 pixels
 
 App screenshots must use isolated `window` capture mode, not a composited screen rect. This prevents unrelated windows behind the editor from appearing in public examples. The frames around the screenshots are added by capcap's native beautify renderer; the inner UI is actual captured UI.
 
 ## Render
 
 ```bash
-./render.sh /tmp/source.png /tmp/editor.png /tmp/beautify.png /tmp/settings.png /absolute/path/to/capcap/images
+./render.sh /tmp/source.png /tmp/editor.png /tmp/beautify.png /absolute/path/to/capcap/images
 ```
 
-The script validates each source/spec pair before writing the five PNGs. Every output uses the same `blue-purple` preset. `crop` is applied after annotations, and padding is added last. Inspect the generated files at README width before accepting them.
+The script validates each source/spec pair before writing four PNGs. Every output uses the same `blue-purple` preset. `crop` is applied after annotations, and padding is added last. Inspect the generated files at README width before accepting them.
 
 `marks.json` creates four marks on the original source before opening it in the editor. Those marks are flattened into the imported image; this sample does not claim to demonstrate an editable CLI project format. The live toolbar belongs to the current app.
 
@@ -60,4 +58,4 @@ The script validates each source/spec pair before writing the five PNGs. Every o
 - Tool buttons exposed blank or icon-derived accessibility names
 - Native beautification could introduce an unwanted 2× scale in a pixel-based pipeline
 
-The CLI now exposes `schema`, `displays` and `validate`, plus spotlight, crop and beautify. It remains a headless PNG renderer: GUI editing sessions, scrolling capture, OCR, uploads and recording still use their existing interfaces.
+The CLI now exposes `schema`, `displays` and `validate`, plus spotlight, crop and beautify. It remains a headless PNG renderer: GUI editing sessions, scrolling capture, OCR and recording still use their existing interfaces.
